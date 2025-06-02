@@ -3,6 +3,7 @@ if (!testthat::is_testing()) source(testthat::test_path("setup.R"))
 
 test_that("Function: prepInputsToMasterRaster", {
 
+  withr::local_libpaths(spadesTestPaths$packagePath, action = "prefix")
   source(list.files(file.path(spadesTestPaths$RProj, "R"), pattern = "\\.R$", full = TRUE))
 
   # Prep SpatRaster: test upsampling
