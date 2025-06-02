@@ -1,0 +1,126 @@
+
+if (!testthat::is_testing()) source(testthat::test_path("setup.R"))
+
+test_that("Function: prepInputsToMasterRaster", {
+
+  source(list.files(file.path(spadesTestPaths$RProj, "R"), pattern = "\\.R$", full = TRUE))
+
+  # Prep SpatRaster: test upsampling
+  input <- terra::rast(file.path(spadesTestPaths$testdata, "SaskDist_1987_crop.tif"))
+
+  masterRaster <- terra::rast(
+    res = 5, vals = 1, crs = "EPSG:3979",
+    ext = c(xmin = -674500, xmax = -671500, ymin =  702000, ymax =  705000))
+  prepRast <- prepInputsToMasterRaster(input, masterRaster)
+
+  if (interactive()) terra::writeRaster(
+    prepRast, tempfile("prepRast-upsample_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
+
+  expect_true(terra::compareGeom(prepRast, masterRaster, stopOnError = FALSE))
+  expect_equal(
+    data.table::data.table(val = terra::values(prepRast)[, 1])[, .N, by = "val"][order(val)],
+    data.table::data.table(
+      val = c(2, 3, 5, NA),
+      N   = c(27859, 3091, 12723, 316327)
+    ))
+
+  # Prep SpatRaster: test downsampling
+  masterRaster <- terra::rast(
+    res = 50, vals = 1, crs = "EPSG:3979",
+    ext = c(xmin = -674500, xmax = -671500, ymin =  702000, ymax =  705000))
+  prepRast <- prepInputsToMasterRaster(input, masterRaster)
+
+  if (interactive()) terra::writeRaster(
+    prepRast, tempfile("prepRast-downsample_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
+
+  expect_true(terra::compareGeom(prepRast, masterRaster, stopOnError = FALSE))
+  expect_equal(
+    data.table::data.table(val = terra::values(prepRast)[, 1])[, .N, by = "val"][order(val)],
+    data.table::data.table(
+      val = c(2, 3, 5, NA),
+      N   = c(280, 32, 121, 3167)
+    ))
+
+  # Prep SpatRaster: test reprojecting
+  masterRaster <- terra::rast(
+    res = 10, vals = 1, crs = "EPSG:102001",
+    ext = c(xmin = -608000, xmax = -606000, ymin = 1711000, ymax = 1713000))
+  prepRast <- prepInputsToMasterRaster(
+    input = terra::rast(file.path(spadesTestPaths$testdata, "tile1.tif")),
+    masterRaster = masterRaster)
+
+  if (interactive()) terra::writeRaster(
+    prepRast, tempfile("prepRast-reproject_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
+
+  expect_true(terra::compareGeom(prepRast, masterRaster, stopOnError = FALSE))
+  expect_equal(
+    data.table::data.table(val = terra::values(prepRast)[, 1])[, .N, by = "val"][order(val)],
+    data.table::data.table(
+      val = c(27, 28),
+      N   = c(64274, 185726)
+    ))
+
+  # Prep raster tiles
+  masterRaster <- terra::rast(
+    res = 10, vals = 1, crs = "EPSG:32613",
+    ext = c(xmin =  458500, xmax =  463500, ymin = 6105000, ymax = 6110000))
+  prepTiles <- prepInputsToMasterRaster(
+    input = file.path(spadesTestPaths$testdata, c("tile1.tif", "tile2.tif")),
+    masterRaster = masterRaster)
+
+  if (interactive()) terra::writeRaster(
+    prepTiles, tempfile("prepTiles_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
+
+  expect_true(terra::compareGeom(prepTiles, masterRaster, stopOnError = FALSE))
+  expect_equal(
+    data.table::data.table(val = terra::values(prepTiles)[, 1])[, .N, by = "val"][order(val)],
+    data.table::data.table(
+      val = c(27, 28),
+      N   = c(108952, 141048)
+    ))
+
+  # Prep sf polygons
+  inSF <- sf::st_read(
+    file.path(spadesTestPaths$testdata, "spuLocator.shp"), agr = "constant",
+    quiet = TRUE)
+  masterRaster <- terra::rast(
+    res = 10, vals = 1, crs = "EPSG:32613",
+    ext = c(xmin =  456000,  xmax = 461000, ymin = 6105000, ymax = 6110000))
+
+  prepSF <- prepInputsToMasterRaster(
+    input = inSF[, "id"],
+    masterRaster = masterRaster)
+
+  if (interactive()) terra::writeRaster(
+    prepSF, tempfile("prepSF_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
+
+  expect_true(terra::compareGeom(prepSF, masterRaster, stopOnError = FALSE))
+  expect_equal(
+    data.table::data.table(val = terra::values(prepSF)[, 1])[, .N, by = "val"][order(val)],
+    data.table::data.table(
+      val = c(1, 4, 5, 8),
+      N   = c(69052, 116674, 19458, 44816)
+    ))
+
+  ## Allow for NA areas
+  masterRaster <- terra::rast(
+    res = 10, vals = 1, crs = "EPSG:32613",
+    ext = c(xmin =  456000,  xmax = 461000, ymin = 6105000, ymax = 6110000))
+
+  prepSF <- prepInputsToMasterRaster(
+    input = subset(inSF[, "id"], id == 1),
+    masterRaster = masterRaster)
+
+  if (interactive()) terra::writeRaster(
+    prepSF, tempfile("prepSF-NAs_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
+
+  expect_true(terra::compareGeom(prepSF, masterRaster, stopOnError = FALSE))
+  expect_equal(
+    data.table::data.table(val = terra::values(prepSF)[, 1])[, .N, by = "val"][order(val)],
+    data.table::data.table(
+      val = c(1, NaN),
+      N   = c(69052, 250000 - 69052)
+    ))
+})
+
+
