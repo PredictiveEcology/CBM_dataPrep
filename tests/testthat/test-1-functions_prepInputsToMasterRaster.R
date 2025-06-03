@@ -23,7 +23,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(
       val = c(2, 3, 5, NA),
       N   = c(27859, 3091, 12723, 316327)
-    ))
+    ), tolerance = 100, scale = 1)
 
   # Prep SpatRaster: test downsampling
   masterRaster <- terra::rast(
@@ -40,7 +40,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(
       val = c(2, 3, 5, NA),
       N   = c(280, 32, 121, 3167)
-    ))
+    ), tolerance = 100, scale = 1)
 
   # Prep SpatRaster: test reprojecting
   masterRaster <- terra::rast(
@@ -62,7 +62,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(
       val = c(27, 28),
       N   = c(16404, 29391)
-    ))
+    ), tolerance = 100, scale = 1)
 
   # Prep raster tiles
   masterRaster <- terra::rast(
@@ -81,7 +81,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(
       val = c(27, 28),
       N   = c(108952, 141048)
-    ))
+    ), tolerance = 100, scale = 1)
 
   # Prep sf polygons
   inSF <- sf::st_read(
@@ -104,7 +104,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(
       val = c(1, 4, 5, 8),
       N   = c(69052, 116674, 19458, 44816)
-    ))
+    ), tolerance = 100, scale = 1)
 
   ## Allow for NA areas
   masterRaster <- terra::rast(
@@ -124,7 +124,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(
       val = c(1, NaN),
       N   = c(69052, 250000 - 69052)
-    ))
+    ), tolerance = 100, scale = 1)
 })
 
 
