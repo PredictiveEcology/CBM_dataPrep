@@ -44,8 +44,11 @@ test_that("Function: prepInputsToMasterRaster", {
 
   # Prep SpatRaster: test reprojecting
   masterRaster <- terra::rast(
-    res = 10, vals = 1, crs = "EPSG:102001",
-    ext = c(xmin = -608000, xmax = -606000, ymin = 1711000, ymax = 1713000))
+    ncols = 213, nrows = 215,
+    vals = 1, crs = "EPSG:4326",
+    ext = c(xmin = -105.6567825386380974, xmax = -105.6294401406081107,
+            ymin =   55.1008597705739831, ymax =   55.1284589047357017))
+
   prepRast <- prepInputsToMasterRaster(
     input = terra::rast(file.path(spadesTestPaths$testdata, "tile1.tif")),
     masterRaster = masterRaster)
@@ -58,7 +61,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(val = terra::values(prepRast)[, 1])[, .N, by = "val"][order(val)],
     data.table::data.table(
       val = c(27, 28),
-      N   = c(64274, 185726)
+      N   = c(16404, 29391)
     ))
 
   # Prep raster tiles
