@@ -484,10 +484,12 @@ Init <- function(sim) {
     c("pixelIndex", "area", "ecozone", "spatial_unit_id"), names(allPixDT))]
   data.table::setkey(sim$standDT, pixelIndex)
 
-  allPixDT[, cohortID := pixelIndex]
-  sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
-    c("cohortID", "pixelIndex", "ages", "ageSpinup", "gcids", names(sim$cohortLocators)), names(allPixDT))]
-  data.table::setkey(sim$cohortDT, cohortID)
+  if (is.null(sim$cohortDT)){
+    allPixDT[, cohortID := pixelIndex]
+    sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
+      c("cohortID", "pixelIndex", "ages", "ageSpinup", "gcids", names(sim$cohortLocators)), names(allPixDT))]
+    data.table::setkey(sim$cohortDT, cohortID)
+  }
 
 
   ## Return simList ----
