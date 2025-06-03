@@ -41,8 +41,10 @@ test_that("Module: SK-small", {
       # Set disturbances
       ## Test matching user disturbances with CBM-CFS3 disturbances
       disturbanceMeta = rbind(
-        data.frame(eventID = 1, wholeStand = 1, name = "Wildfire", objectName = NA_character_),
-        data.frame(eventID = 2, wholeStand = 1, name = "Clearcut harvesting without salvage", objectName = "clearcut")
+        data.frame(eventID = 1, wholeStand = 1, name = "Wildfire",
+                   objectName = NA_character_, delay = 1),
+        data.frame(eventID = 2, wholeStand = 1, name = "Clearcut harvesting without salvage",
+                   objectName = "clearcut", delay = NA_integer_)
       ),
       disturbanceRasters = list(
         `1` = list(
@@ -137,7 +139,7 @@ test_that("Module: SK-small", {
   expect_identical(names(distEvents), c("1", "2"))
 
   expect_equal(distEvents[["1"]], rbind(
-    data.table(pixelIndex = 1, year = 1998, eventID = 1)
+    data.table(pixelIndex = 1, year = 1999, eventID = 1)
   ))
 
   expect_equal(distEvents[["2"]], rbind(

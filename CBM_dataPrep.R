@@ -112,7 +112,8 @@ defineModule(sim, list(
         eventID             = "Event type ID",
         disturbance_type_id = "Optional. CBM-CFS3 disturbance type ID. If not provided, the user will be prompted to choose IDs.",
         name                = "Optional. Disturbance name (e.g. 'Wildfire'). Required if 'disturbance_type_id' absent.",
-        objectName          = "Optional. Name of the object in the `simList` to retrieve the disturbances from annually."
+        objectName          = "Optional. Name of the object in the `simList` to retrieve the disturbances from annually.",
+        delay               = "Optional. Delay (in years) of when the disturbance will take effect"
       )),
     expectsInput(
       objectName = "disturbanceMetaURL", objectClass = "character", desc = "URL for `disturbanceMeta`"),
@@ -226,19 +227,12 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
         if (any(is.na(names(distRasts)))) stop("disturbanceRasters list names contains NAs")
         if (any(names(distRasts) == ""))  stop("disturbanceRasters list names contains empty strings")
 
-        if (is.null(sim$disturbanceEvents)){
-          sim$disturbanceEvents <- data.table::data.table(
-            pixelIndex = integer(0),
-            year       = integer(0),
-            eventID    = integer(0)
-          )
-        }
-
         eventIDs <- suppressWarnings(tryCatch(
           as.integer(names(distRasts)),
           error = function(e) stop("disturbanceRasters list names must be coercible to integer")))
 
         for (i in 1:length(distRasts)){
+
           distAlign <- prepInputsToMasterRaster(
             distRasts[[i]],
             sim$masterRaster
@@ -246,9 +240,13 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
           eventIndex <- which(!is.na(terra::values(distAlign)[,1]))
           if (length(eventIndex) > 0){
+
+            distDelay <- sim$disturbanceMeta$delay[sim$disturbanceMeta$eventID == eventIDs[[i]]]
+            if (length(na.omit(distDelay)) != 1) distDelay <- 0
+
             sim$disturbanceEvents <- rbind(sim$disturbanceEvents, data.table::data.table(
               pixelIndex = eventIndex,
-              year       = as.integer(time(sim)),
+              year       = as.integer(time(sim) + distDelay),
               eventID    = eventIDs[[i]]
             ))
           }
