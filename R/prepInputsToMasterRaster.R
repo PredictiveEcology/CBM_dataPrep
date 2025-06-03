@@ -54,11 +54,7 @@ prepInputsToMasterRaster <- function(input, masterRaster){
 
     if (reproj){
 
-      input <- postProcess(
-        input,
-        to     = masterRaster,
-        method = "mode"
-      )
+      input <- terra::project(input, masterRaster, method = "mode")
 
     }else{
 

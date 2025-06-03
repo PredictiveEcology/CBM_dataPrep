@@ -62,7 +62,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(
       val = c(27, 28),
       N   = c(16404, 29391)
-    ), tolerance = 10, scale = 1)
+    ), tolerance = 50, scale = 1)
 
   # Prep raster tiles
   masterRaster <- terra::rast(
