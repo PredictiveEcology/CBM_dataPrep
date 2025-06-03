@@ -20,3 +20,15 @@
   testthat::test_dir("tests/testthat", reporter = testthat::LocationReporter)
   testthat::test_dir("tests/testthat", reporter = testthat::SummaryReporter)
 
+
+## RUN INDIVIDUAL TESTS ----
+
+  # Run function tests
+  testthat::test_dir("tests/testthat", filter = "function")
+
+  # Run module tests
+  testthat::test_dir("tests/testthat", filter = "module")
+
+  # Run integration tests
+  testthat::test_dir("tests/testthat", filter = "integration")
+
