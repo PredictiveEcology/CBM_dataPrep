@@ -208,7 +208,6 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
         distRasts <- lapply(sim$disturbanceRasters, function(d){
           if (as.character(time(sim)) %in% names(d)) d[[as.character(time(sim))]]
         })
-        distRasts <- distRasts[!sapply(distRasts, is.null)]
 
       }else distRasts <- list()
 
@@ -220,6 +219,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
       }
 
       # Summarize year events into a table
+      distRasts <- distRasts[!sapply(distRasts, is.null)]
       if (length(distRasts) > 0){
 
         if (is.null(names(distRasts)))    stop("disturbanceRasters list names must be disturbance event IDs")
