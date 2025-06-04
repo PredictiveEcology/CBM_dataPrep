@@ -180,7 +180,7 @@ defineModule(sim, list(
         "Input `disturbanceRasters` are aligned with the `masterRaster`",
         "and the events are summarized into this table.")),
     createsOutput(
-      objectName = "disturbanceMeta", objectClass = "data.frame",
+      objectName = "disturbanceMeta", objectClass = "data.table",
       desc = "Table defining the disturbance event types.")
   )
 ))
