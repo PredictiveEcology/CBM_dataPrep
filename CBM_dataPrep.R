@@ -103,17 +103,18 @@ defineModule(sim, list(
         "For example, event type 1 disturbance locations for 2025 can be accessed with `disturbanceRasters[[\"1\"]][[\"2025\"]]`.",
         "Each disturbance item can be one of the following:",
         "a terra SpatRaster layer, one or more raster file paths, or sf polygons.",
-        "All non-NA areas will be considered events."
+        "All non-NA areas will be considered events unless the 'sourceValue' column is set."
       )),
     expectsInput(
       objectName = "disturbanceMeta", objectClass = "data.table",
       desc = "Table defining the disturbance event types",
       columns = c(
         eventID             = "Event type ID",
-        disturbance_type_id = "Optional. CBM-CFS3 disturbance type ID. If not provided, the user will be prompted to choose IDs.",
-        name                = "Optional. Disturbance name (e.g. 'Wildfire'). Required if 'disturbance_type_id' absent.",
-        objectName          = "Optional. Name of the object in the `simList` to retrieve the disturbances from annually.",
-        delay               = "Optional. Delay (in years) of when the disturbance will take effect"
+        disturbance_type_id = "CBM-CFS3 disturbance type ID. If not provided, the user will be prompted to choose IDs.",
+        name                = "Disturbance name (e.g. 'Wildfire'). Required only if 'disturbance_type_id' absent.",
+        delay               = "Optional. Delay (in years) of when the disturbanceRasters` source will take effect",
+        sourceValue         = "Optional. Value in the `disturbanceRasters` object to include as events",
+        objectName          = "Optional. Name of the object in the `simList` to retrieve the disturbances from annually."
       )),
     expectsInput(
       objectName = "disturbanceMetaURL", objectClass = "character", desc = "URL for `disturbanceMeta`"),
@@ -233,23 +234,30 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
         for (i in 1:length(distRasts)){
 
+          distMeta <- if (!is.null(sim$disturbanceMeta)) subset(sim$disturbanceMeta, eventID == eventIDs[[i]])
+
           distAlign <- prepInputsToMasterRaster(
             distRasts[[i]],
             sim$masterRaster
           ) |> Cache()
 
-          eventIndex <- which(!is.na(terra::values(distAlign)[,1]))
-          if (length(eventIndex) > 0){
+          distValues <- terra::values(distAlign)[,1]
+          if (length(na.omit(distMeta$sourceValue)) == 1){
+            distValues[!distValues %in% distMeta$sourceValue] <- NA
+          }
 
-            distDelay <- sim$disturbanceMeta$delay[sim$disturbanceMeta$eventID == eventIDs[[i]]]
-            if (length(na.omit(distDelay)) != 1) distDelay <- 0
+          eventIndex <- which(!is.na(distValues))
+          if (length(eventIndex) > 0){
 
             sim$disturbanceEvents <- rbind(sim$disturbanceEvents, data.table::data.table(
               pixelIndex = eventIndex,
-              year       = as.integer(time(sim) + distDelay),
+              year       = as.integer(time(sim) + c(na.omit(distMeta$delay), 0)[[1]]),
               eventID    = eventIDs[[i]]
             ))
           }
+
+          rm(distValues)
+          rm(eventIndex)
 
           if (P(sim)$saveRasters){
             outPath <- file.path(
