@@ -112,9 +112,9 @@ defineModule(sim, list(
         eventID             = "Event type ID",
         disturbance_type_id = "CBM-CFS3 disturbance type ID. If not provided, the user will be prompted to choose IDs.",
         name                = "Disturbance name (e.g. 'Wildfire'). Required only if 'disturbance_type_id' absent.",
-        delay               = "Optional. Delay (in years) of when the disturbanceRasters` source will take effect",
-        sourceValue         = "Optional. Value in the `disturbanceRasters` object to include as events",
-        objectName          = "Optional. Name of the object in the `simList` to retrieve the disturbances from annually."
+        sourceValue         = "Optional. Value in `disturbanceRasters` to include as events",
+        sourceDelay         = "Optional. Delay (in years) of when the `disturbanceRasters` will take effect",
+        sourceObjectName    = "Optional. Name of the object in the `simList` to retrieve the `disturbanceRasters` from annually."
       )),
     expectsInput(
       objectName = "disturbanceMetaURL", objectClass = "character", desc = "URL for `disturbanceMeta`"),
@@ -214,10 +214,10 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
       }else distRasts <- list()
 
       # Retrieve disturbances from simList
-      for (i in which(!is.na(sim$disturbanceMeta$objectName))){
+      for (i in which(!is.na(sim$disturbanceMeta$sourceObjectName))){
 
         distRasts[[as.character(sim$disturbanceMeta[i,]$eventID)]] <- get(
-          sim$disturbanceMeta[i,]$objectName, envir = sim)
+          sim$disturbanceMeta[i,]$sourceObjectName, envir = sim)
       }
 
       # Summarize year events into a table
@@ -251,7 +251,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
             sim$disturbanceEvents <- rbind(sim$disturbanceEvents, data.table::data.table(
               pixelIndex = eventIndex,
-              year       = as.integer(time(sim) + c(na.omit(distMeta$delay), 0)[[1]]),
+              year       = as.integer(time(sim) + c(na.omit(distMeta$sourceDelay), 0)[[1]]),
               eventID    = eventIDs[[i]]
             ))
           }
