@@ -18,7 +18,8 @@ defineModule(sim, list(
   reqdPkgs = list(
     "data.table", "sf", "terra", "exactextractr",
     "reproducible (>=2.1.2)" ,
-    "PredictiveEcology/CBMutils@development (>=2.0.3.0005)"
+    "PredictiveEcology/CBMutils@development (>=2.0.3.0005)",
+    "PredictiveEcology/LandR@development"
   ),
   parameters = rbind(
     defineParameter("saveRasters", "logical", FALSE, NA, NA, "Save rasters of inputs aligned to the `masterRaster`"),
@@ -410,8 +411,22 @@ Init <- function(sim) {
       if (!"species" %in% names(sim[[gcMetaTable]])) stop(
         gcMetaTable, " requires the 'species' names column to retrieve species data with CBMutils::sppMatch")
 
+      ## TEMPORARY: Add species missing from LandR::sppEquivalencies_CA
+      sppEquiv <- LandR::sppEquivalencies_CA
+      if (!177 %in% sppEquiv$CBM_speciesID){
+        sppEquiv <- data.table::rbindlist(list(
+          sppEquiv, data.frame(
+            EN_generic_full = "Balsam poplar, largetooth aspen and eastern cottonwood",
+            CBM_speciesID = 177,
+            Broadleaf     = TRUE,
+            CanfiCode     = 1211,
+            NFI           = "_POPU"
+          )), fill = TRUE)
+      }
+
       sppMatchTable <- CBMutils::sppMatch(
         sim[[gcMetaTable]]$species,
+        sppEquivalencies = sppEquiv,
         return     = c("CBM_speciesID", "Broadleaf", "CanfiCode", "NFI"),
         otherNames = list(
           "White birch" = "Paper birch"
