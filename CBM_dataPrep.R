@@ -63,6 +63,13 @@ defineModule(sim, list(
         "Minimum age for cohorts during spinup.",
         "Temporary fix to CBM_core issue: https://github.com/PredictiveEcology/CBM_core/issues/1")),
     expectsInput(
+      objectName = "gcIndexLocator", objectClass = "sf|SpatRaster",
+      desc = paste(
+        "Spatial data source of growth curve locations.",
+        "If provided, IDs will be added to the 'curveID' column of `cohortDT` and `curveID` will be set to 'curveID'")),
+    expectsInput(
+      objectName = "gcIndexLocatorURL", objectClass = "character", desc = "URL for `gcIndexLocator`"),
+    expectsInput(
       objectName = "cohortLocators", objectClass = "list",
       desc = paste(
         "List of spatial data sources for additional columns in `cohortDT`.",
@@ -289,7 +296,8 @@ Init <- function(sim) {
     list(
       ecozone         = sim$ecoLocator,
       spatial_unit_id = sim$spuLocator,
-      ages            = sim$ageLocator
+      ages            = sim$ageLocator,
+      curveID         = sim$gcIndexLocator
     ),
     sim$cohortLocators
   )
@@ -378,6 +386,7 @@ Init <- function(sim) {
   }
 
   # Set growth curve ID
+  if (!is.null(sim$gcIndexLocator)) sim$curveID <- "curveID"
   if (!is.null(sim$curveID)){
 
     if (!all(sim$curveID %in% names(allPixDT))) stop("'cohortLocators' must contain all columns in `curveID`")
@@ -576,6 +585,15 @@ Init <- function(sim) {
     warning("'ageDataYear' not provided by user; `ageLocator` ages assumed to represent cohort age at simulation start")
 
     sim$ageDataYear <- as.numeric(start(sim))
+  }
+
+  # Growth curve locations
+  if (!suppliedElsewhere("gcIndexLocator", sim) & suppliedElsewhere("gcIndexLocatorURL", sim)){
+
+    sim$gcIndexLocator <- prepInputs(
+      destinationPath = inputPath(sim),
+      url = sim$gcIndexLocatorURL
+    )
   }
 
   # Other cohort data
