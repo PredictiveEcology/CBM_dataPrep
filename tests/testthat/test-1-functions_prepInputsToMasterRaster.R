@@ -64,6 +64,25 @@ test_that("Function: prepInputsToMasterRaster", {
       N   = c(16404, 29391)
     ), tolerance = 50, scale = 1)
 
+  # Prep raster file
+  masterRaster <- terra::rast(
+    res = 10, vals = 1, crs = "EPSG:32613",
+    ext = c(xmin =  458500, xmax =  463500, ymin = 6105000, ymax = 6110000))
+  prepFile <- prepInputsToMasterRaster(
+    input = file.path(spadesTestPaths$testdata, "tile1.tif"),
+    masterRaster = masterRaster)
+
+  if (interactive()) terra::writeRaster(
+    prepFile, tempfile("prepFile_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
+
+  expect_true(terra::compareGeom(prepFile, masterRaster, stopOnError = FALSE))
+  expect_equal(
+    data.table::data.table(val = terra::values(prepFile)[, 1])[, .N, by = "val"][order(val)],
+    data.table::data.table(
+      val = c(27, 28, NaN),
+      N   = c(48548, 76452, 125000)
+    ), tolerance = 10, scale = 1)
+
   # Prep raster tiles
   masterRaster <- terra::rast(
     res = 10, vals = 1, crs = "EPSG:32613",

@@ -10,12 +10,6 @@
 #' @return SpatRaster
 prepInputsToMasterRaster <- function(input, masterRaster){
 
-  # If input is file(s): read as SpatRaster; mosaic tiles if need be
-  if (is.character(input) &&
-      all(tryCatch(file.exists(input), error = function(e) FALSE))){
-    input <- do.call(terra::mosaic, lapply(input, terra::rast))
-  }
-
   if (inherits(input, "sf")){
 
     # Crop and reproject
@@ -35,13 +29,16 @@ prepInputsToMasterRaster <- function(input, masterRaster){
 
   }else{
 
-    # Read as SpatRaster
+    # Read as SpatRaster; mosaic tiles if need be
     if (!inherits(input, "SpatRaster")){
-      input <- tryCatch(
-        terra::rast(input),
-        error = function(e) stop(
-          "input could not be converted to SpatRaster: ", e$message,
-          call. = FALSE))
+
+      if (length(input) > 1 && is.character(input) &&
+          all(tryCatch(file.exists(input), error = function(e) FALSE))){
+        input <- do.call(terra::mosaic, lapply(input, terra::rast))
+
+      }else{
+        input <- terra::rast(input)
+      }
     }
 
     reproj <- !terra::compareGeom(
