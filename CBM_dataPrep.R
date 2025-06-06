@@ -71,29 +71,26 @@ defineModule(sim, list(
     expectsInput(
       objectName = "cohortLocatorURLs", objectClass = "list", desc = "URLs for `cohortLocators`"),
     expectsInput(
-      objectName = "gcKey", objectClass = "character",
+      objectName = "curveID", objectClass = "character",
       desc = paste(
-        "Column names defining unique growth curves in `gcMeta` nad `userGcM3`.",
+        "Column(s) uniquely defining each growth curve in `cohortDT`, `userGcMeta`, and `userGcM3`.",
         "Each column must have a corresponding named spatial data source in `cohortLocators`")),
     expectsInput(
-      objectName = "gcMeta", objectClass = "data.frame",
-      desc = "Growth curve metadata with all columns in `gcKey`",
+      objectName = "userGcMeta", objectClass = "data.table",
+      desc = paste(
+        "Growth curve metadata for CBM_vol2biomass.",
+        "If provided, species names will be matched with known species get additional attributes."),
       columns = list(
-        species       = paste(
-          "Optional. Species name.",
-          "If no other columns are provided, names will be matched with known species to set them."),
-        species_id    = "CBM-CFS3 species ID",
-        sw_hw         = "'sw' or 'hw'",
-        canfi_species = "CanFI species codes",
-        genus         = "NFI species genus"
+        species = "Species name"
       )),
     expectsInput(
-      objectName = "gcMetaURL", objectClass = "character", desc = "URL for `gcMeta`"),
-    expectsInput(
-      objectName = "userGcM3", objectClass = "data.frame",
-      desc = "Growth curve volumes with all columns in `gcKey` and `Age` and `MerchVolume`."),
-    expectsInput(
-      objectName = "userGcM3URL", objectClass = "character", desc = "URL for `userGcM3`"),
+      objectName = "gcMeta", objectClass = "data.table",
+      desc = paste(
+        "Growth curve metadata.",
+        "If provided, species names will be matched with known species get additional attributes."),
+      columns = list(
+        species = "Species name"
+      )),
     expectsInput(
       objectName = "disturbanceRasters", objectClass = "list",
       desc = paste(
@@ -142,32 +139,29 @@ defineModule(sim, list(
         cohortID   = "`masterRaster` cell index",
         pixelIndex = "`masterRaster` cell index",
         ages       = "Cohort ages extracted from input `ageLocator`",
-        ageSpinup  = "Cohort ages raised to minimum of `ageSpinupMin` to use in the spinup"
+        ageSpinup  = "Cohort ages raised to minimum of `ageSpinupMin` to use in the spinup",
+        gcids      = "Growth curve ID unique to every spatial unit and `curveID`"
       )),
     createsOutput(
-      objectName = "curveID", objectClass = "character",
-      desc = paste(
-        "Name of the column uniquely defining each growth curve in `gcMeta` and `userGcM3`.",
-        "This column will also be present in `cohortDT`.")),
-    createsOutput(
-      objectName = "gcMeta", objectClass = "data.frame", # TODO
-      desc = "Growth curve metadata.",
+      objectName = "userGcSPU", objectClass = "data.table",
+      desc = "Table of growth curves and spatial unit combinations in the cohorts.",
       columns = list(
-        curveID         = "`curveID`",
-        ecozone         = "Canada ecozone ID",
-        spatial_unit_id = "CBM-CFS3 spatial unit ID",
+        curveID         = "Growth curve ID",
+        spatial_unit_id = "CBM-CFS3 spatial unit ID"
+      )),
+    createsOutput(
+      objectName = "userGcMeta", objectClass = "data.table",
+      desc = "Growth curve metadata with additional species attributes.",
+      columns = list(
         species_id      = "CBM-CFS3 species ID",
         sw_hw           = "'sw' or 'hw'",
         canfi_species   = "CanFI species codes",
         genus           = "NFI species genus"
       )),
     createsOutput(
-      objectName = "userGcM3", objectClass = "data.frame", # TODO
-      desc = "Growth curve volumes.",
+      objectName = "gcMeta", objectClass = "data.table",
+      desc = "Growth curve metadata with additional species attributes.",
       columns = list(
-        curveID         = "`curveID`",
-        ecozone         = "Canada ecozone ID",
-        spatial_unit_id = "CBM-CFS3 spatial unit ID",
         species_id      = "CBM-CFS3 species ID",
         sw_hw           = "'sw' or 'hw'",
         canfi_species   = "CanFI species codes",
@@ -281,7 +275,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
 Init <- function(sim) {
 
-  ## Read spatial inputs ----
+  ## Prepare sim$standDT and sim$cohortDT ----
 
   if (length(sim$cohortLocators) > 0){
     if (!is.list(sim$cohortLocators) || is.null(names(sim$cohortLocators))) stop(
@@ -382,89 +376,57 @@ Init <- function(sim) {
     allPixDT[ageSpinup < sim$ageSpinupMin, ageSpinup := sim$ageSpinupMin]
   }
 
+  # Set growth curve ID
+  if (!is.null(sim$curveID)){
 
-  ## Prepare growth curves ----
+    if (!all(sim$curveID %in% names(allPixDT))) stop("'cohortLocators' must contain all columns in `curveID`")
 
-  if (!is.null(sim$gcMeta) && !inherits(sim$gcMeta, "data.table")){
-    sim$gcMeta <- tryCatch(
-      data.table::as.data.table(sim$gcMeta),
-      error = function(e) stop(
-        "gcMeta could not be converted to data.table: ", e$message, call. = FALSE))
-  }
-  if (!is.null(sim$userGcM3) && !inherits(sim$userGcM3, "data.table")){
-    sim$userGcM3 <- tryCatch(
-      data.table::as.data.table(sim$userGcM3),
-      error = function(e) stop(
-        "userGcM3 could not be converted to data.table: ", e$message, call. = FALSE))
+    # Define unique growth curves with spatial_unit_id
+    allPixDT$gcids <- factor(
+      CBMutils::gcidsCreate(allPixDT[, .SD, .SDcols = c("spatial_unit_id", sim$curveID)])
+    )
+    sim$userGcSPU <- unique(allPixDT[, .SD, .SDcols = c("spatial_unit_id", sim$curveID)])
   }
 
-  if (!is.null(sim$gcKey)){
+  # Create sim$standDT and sim$cohortDT
+  sim$standDT <- allPixDT[, .SD, .SDcols = intersect(
+    c("pixelIndex", "area", "ecozone", "spatial_unit_id"), names(allPixDT))]
+  data.table::setkey(sim$standDT, pixelIndex)
 
-    if (is.null(sim$gcMeta))   stop("'gcMeta' not found")
-    if (is.null(sim$userGcM3)) stop("'userGcM3' not found")
-
-    if (!all(sim$gcKey %in% names(sim$gcMeta)))   stop("'gcMeta' must contain all columns in `gcKey`")
-    if (!all(sim$gcKey %in% names(sim$userGcM3))) stop("'userGcM3' must contain all columns in `gcKey`")
-    if (!all(sim$gcKey %in% names(allPixDT)))     stop("'cohortLocators' must contain all columns in `gcKey`")
-
-    if ("gcids" %in% sim$gcKey)           stop("'gcKey' cannot contain \"gcids\"")
-    if ("gcids" %in% names(sim$gcMeta))   stop("'gcMeta' cannot contain \"gcids\"")
-    if ("gcids" %in% names(sim$userGcM3)) stop("'userGcM3' cannot contain \"gcids\"")
-    if ("gcids" %in% names(allPixDT))     stop("'cohortLocators' cannot contain \"gcids\"")
-
-    # Create a new unique key defining each growth curve
-    sim$curveID <- "gcids"
-
-    allPixDT$gcids <- CBMutils::gcidsCreate(allPixDT[, .SD, .SDcols = sim$gcKey])
-
-    sim$gcMeta <- cbind(
-      gcids = CBMutils::gcidsCreate(sim$gcMeta[, .SD, .SDcols = sim$gcKey]),
-      sim$gcMeta)
-    data.table::setkey(sim$gcMeta, gcids)
-
-    sim$userGcM3 <- cbind(
-      gcids = CBMutils::gcidsCreate(sim$userGcM3[, .SD, .SDcols = sim$gcKey]),
-      sim$userGcM3)
-    data.table::setkeyv(sim$userGcM3, c("gcids", "Age"))
-
-    # Add ecozone and spatial_unit_id to sim$gcMeta
-    if (any(!c("ecozones", "spatial_unit_id") %in% names(sim$gcMeta))){
-
-      ## NOTE: this could produce different results for GCIDs in more than one ecozone or SPU.
-      gcSPU <- unique(allPixDT[, .(gcids, ecozone, ecozones = ecozone, spatial_unit_id)])
-      # if (any(duplicated(gcSPU$gcids))) warning(
-      #   "Growth curves are not unique to every CBM-CFS spatial_unit_id in the simulation. ",
-      #   "Add \"ecozone\" and/or \"spatial_unit_id\" to sim$gcKey to make them unique.")
-
-      sim$gcMeta <- merge(sim$gcMeta, gcSPU, by = intersect(names(gcSPU), names(sim$gcMeta)), all.x = TRUE)
-
-      # Only include curves with this information available
-      sim$gcMeta <- subset(sim$gcMeta, gcids %in% gcSPU$gcids)
-    }
+  if (is.null(sim$cohortDT)){
+    allPixDT[, cohortID := pixelIndex]
+    sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
+      c("cohortID", "pixelIndex", "ages", "ageSpinup", "gcids", names(sim$cohortLocators)), names(allPixDT))]
+    data.table::setkey(sim$cohortDT, cohortID)
   }
+
+
+  ## Prepare sim$userGcMeta and sim$gcMeta ----
 
   # Get species attributes
-  if (!is.null(sim$gcMeta) && any(!c("species_id", "sw_hw", "canfi_species", "genus") %in% names(sim$gcMeta))){
+  for (gcMetaTable in intersect(c("gcMeta", "userGcMeta"), objects(sim))){
+    if (any(!c("species_id", "sw_hw", "canfi_species", "genus") %in% names(sim[[gcMetaTable]]))){
 
-    if (!"species" %in% names(sim$gcMeta)) stop(
-      "gcMeta requires the 'species' column with species names to retrieve species data with CBMutils::sppMatch")
+      if (!"species" %in% names(sim[[gcMetaTable]])) stop(
+        gcMetaTable, " requires the 'species' names column to retrieve species data with CBMutils::sppMatch")
 
-    sppMatchTable <- CBMutils::sppMatch(
-      sim$gcMeta$species,
-      return     = c("CBM_speciesID", "Broadleaf", "CanfiCode", "NFI"),
-      otherNames = list(
-        "White birch" = "Paper birch"
-      ))[, .(
-        species_id    = CBM_speciesID,
-        sw_hw         = data.table::fifelse(Broadleaf, "hw", "sw"),
-        canfi_species = CanfiCode,
-        genus         = sapply(strsplit(NFI, "_"), `[[`, 1)
-      )]
+      sppMatchTable <- CBMutils::sppMatch(
+        sim[[gcMetaTable]]$species,
+        return     = c("CBM_speciesID", "Broadleaf", "CanfiCode", "NFI"),
+        otherNames = list(
+          "White birch" = "Paper birch"
+        ))[, .(
+          species_id    = CBM_speciesID,
+          sw_hw         = data.table::fifelse(Broadleaf, "hw", "sw"),
+          canfi_species = CanfiCode,
+          genus         = sapply(strsplit(NFI, "_"), `[[`, 1)
+        )]
 
-    sim$gcMeta <- cbind(
-      sim$gcMeta[, .SD, .SDcols = setdiff(names(sim$gcMeta), names(sppMatchTable))],
-      sppMatchTable)
-    rm(sppMatchTable)
+      sim[[gcMetaTable]] <- cbind(
+        sim[[gcMetaTable]][, .SD, .SDcols = setdiff(names(sim[[gcMetaTable]]), names(sppMatchTable))],
+        sppMatchTable)
+      rm(sppMatchTable)
+    }
   }
 
 
@@ -500,20 +462,6 @@ Init <- function(sim) {
   }
 
 
-  ## Prepare sim$standDT and sim$cohortDT ----
-
-  sim$standDT <- allPixDT[, .SD, .SDcols = intersect(
-    c("pixelIndex", "area", "ecozone", "spatial_unit_id"), names(allPixDT))]
-  data.table::setkey(sim$standDT, pixelIndex)
-
-  if (is.null(sim$cohortDT)){
-    allPixDT[, cohortID := pixelIndex]
-    sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
-      c("cohortID", "pixelIndex", "ages", "ageSpinup", "gcids", names(sim$cohortLocators)), names(allPixDT))]
-    data.table::setkey(sim$cohortDT, cohortID)
-  }
-
-
   ## Return simList ----
 
   return(invisible(sim))
@@ -522,7 +470,7 @@ Init <- function(sim) {
 
 .inputObjects <- function(sim){
 
-  ## Define study area ----
+  ## Define stands and cohorts ----
 
   # Master raster
   if (!suppliedElsewhere("masterRaster", sim) & suppliedElsewhere("masterRasterURL", sim)){
@@ -615,10 +563,7 @@ Init <- function(sim) {
     sim$ageDataYear <- as.numeric(start(sim))
   }
 
-
-  ## Growth curves ---
-
-  # Growth curve IDs
+  # Other cohort data
   if (!suppliedElsewhere("cohortLocators", sim) & suppliedElsewhere("cohortLocatorURLs", sim)){
 
     sim$cohortLocators <- lapply(sim$cohortLocatorURLs, function(url){
@@ -627,26 +572,6 @@ Init <- function(sim) {
         url = url
       )
     })
-  }
-
-  # Growth curve metadata
-  if (!suppliedElsewhere("gcMeta", sim) & suppliedElsewhere("gcMetaURL", sim)){
-
-    sim$gcMeta <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$gcMetaURL,
-      fun = data.table::fread
-    )
-  }
-
-  # Growth curve increments
-  if (!suppliedElsewhere("userGcM3", sim) & suppliedElsewhere("userGcM3URL", sim)){
-
-    sim$userGcM3 <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$userGcM3URL,
-      fun = data.table::fread
-    )
   }
 
 
