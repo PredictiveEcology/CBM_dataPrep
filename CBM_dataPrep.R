@@ -492,6 +492,32 @@ Init <- function(sim) {
 
 .inputObjects <- function(sim){
 
+  ## Databases ----
+
+  # CBM-CFS3 defaults database
+  if (!suppliedElsewhere("dbPath", sim)){
+    if (suppliedElsewhere("dbPathURL", sim)){
+
+      sim$dbPath <- prepInputs(
+        destinationPath = inputPath(sim),
+        url = sim$dbPathURL
+      )
+
+    }else{
+
+      sim$dbPath <- file.path(inputPath(sim), "cbm_defaults_v1.2.8340.362.db")
+
+      if (!file.exists(sim$dbPath)) prepInputs(
+        destinationPath = inputPath(sim),
+        url         = extractURL("dbPath"),
+        targetFile  = basename(sim$dbPath),
+        dlFun       = download.file(extractURL("dbPath"), sim$dbPath, mode = "wb", quiet = TRUE),
+        fun         = NA
+      )
+    }
+  }
+
+
   ## Define stands and cohorts ----
 
   # Master raster
@@ -615,29 +641,6 @@ Init <- function(sim) {
       url = sim$disturbanceMetaURL,
       fun = data.table::fread
     )
-  }
-
-  # CBM-CFS3 defaults database
-  if (!suppliedElsewhere("dbPath", sim)){
-    if (suppliedElsewhere("dbPathURL", sim)){
-
-      sim$dbPath <- prepInputs(
-        destinationPath = inputPath(sim),
-        url = sim$dbPathURL
-      )
-
-    }else{
-
-      sim$dbPath <- file.path(inputPath(sim), "cbm_defaults_v1.2.8340.362.db")
-
-      if (!file.exists(sim$dbPath)) prepInputs(
-        destinationPath = inputPath(sim),
-        url         = extractURL("dbPath"),
-        targetFile  = basename(sim$dbPath),
-        dlFun       = download.file(extractURL("dbPath"), sim$dbPath, mode = "wb", quiet = TRUE),
-        fun         = NA
-      )
-    }
   }
 
 
