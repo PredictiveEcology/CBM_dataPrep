@@ -369,11 +369,6 @@ Init <- function(sim) {
     rm(allPixDT_isNA)
   }
 
-  # Create unique growth curve ID for every spatial_unit_id
-  if (all(c("gcIndex", "spatial_unit_id") %in% names(allPixDT))){
-    allPixDT$gcids <- CBMutils::gcidsCreate(allPixDT[, .(spatial_unit_id, gcIndex)])
-  }
-
   # Adjust stand ages
   if ("ages" %in% names(allPixDT) && !is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
 
