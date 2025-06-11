@@ -83,7 +83,7 @@ test_that("Module: SK-small", {
   expect_true(!is.null(simTest$standDT))
   expect_true(inherits(simTest$standDT, "data.table"))
 
-  for (colName in c("pixelIndex", "area", "spatial_unit_id")){
+  for (colName in c("pixelIndex", "area", "admin_name", "admin_boundary_id", "ecozone", "spatial_unit_id")){
     expect_true(colName %in% names(simTest$standDT))
     expect_true(all(!is.na(simTest$standDT[[colName]])))
   }
