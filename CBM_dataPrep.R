@@ -49,7 +49,7 @@ defineModule(sim, list(
       objectName = "spuLocatorURL", objectClass = "character", desc = "URL for `spuLocator`"),
     expectsInput(
       objectName = "ageLocator", objectClass = "sf|SpatRaster",
-      desc = "Spatial data source of stand ages."),
+      desc = "Spatial data source of cohort ages."),
     expectsInput(
       objectName = "ageLocatorURL", objectClass = "character", desc = "URL for `ageLocator`"),
     expectsInput(
@@ -369,10 +369,10 @@ Init <- function(sim) {
     rm(allPixDT_isNA)
   }
 
-  # Adjust stand ages
+  # Adjust cohort ages
   if ("ages" %in% names(allPixDT) && !is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
 
-    # TODO: add step to adjust stand age to the simulation start year
+    # TODO: add step to adjust cohort ages to the simulation start year
     warning("Cohort age data is from ", sim$ageDataYear,
             " instead of the simulation start year")
   }
@@ -569,7 +569,7 @@ Init <- function(sim) {
     }
   }
 
-  # Stand age
+  # Cohort ages
   if (!suppliedElsewhere("ageLocator", sim) & suppliedElsewhere("ageLocatorURL", sim)){
 
     sim$ageLocator <- prepInputs(
