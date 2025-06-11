@@ -335,6 +335,9 @@ Init <- function(sim) {
     }
 
     allPixDT[[colName]] <- terra::values(inAlign)[, 1]
+    if (!is.null(terra::cats(inAlign)[[1]])){
+      allPixDT[[colName]] <- merge(allPixDT[[colName]], terra::cats(inAlign)[[1]], by = 1, all.x = TRUE)[[2]]
+    }
   }
 
   # Subset table to cells where masterRaster is not NA

@@ -23,9 +23,15 @@ prepInputsToMasterRaster <- function(input, masterRaster){
     cellIdxRast <- exactextractr::rasterize_polygons(
       input, masterRaster, min_coverage = 0.5)
 
-    terra::classify(
-      cellIdxRast,
-      rcl = data.frame(from = 1:nrow(input), to = input[[1]]))
+    rclTable <- data.frame(from = 1:nrow(input), to = input[[1]])
+    if (is.character(rclTable$to)){
+
+      levels(cellIdxRast) <- rclTable
+      cellIdxRast
+
+    }else{
+      terra::classify(cellIdxRast, rcl = rclTable)
+    }
 
   }else{
 
