@@ -13,11 +13,17 @@ prepInputsToMasterRaster <- function(input, masterRaster){
   if (inherits(input, "sf")){
 
     # Crop and reproject
-    input <- postProcess(
-      input,
-      cropTo    = masterRaster,
-      projectTo = masterRaster
-    )
+    input <- withCallingHandlers(
+      postProcess(
+        input,
+        cropTo    = masterRaster,
+        projectTo = masterRaster
+      ),
+      warning = function(w){
+        if (w$message == "attribute variables are assumed to be spatially constant throughout all geometries"){
+          invokeRestart("muffleWarning")
+        }
+      })
 
     # Rasterize
     cellIdxRast <- exactextractr::rasterize_polygons(
