@@ -16,7 +16,7 @@ defineModule(sim, list(
   citation = list("citation.bib"),
   documentation = list("CBM_dataPrep.Rmd"),
   reqdPkgs = list(
-    "data.table", "sf", "terra", "exactextractr",
+    "data.table", "RSQLite", "sf", "terra", "exactextractr",
     "reproducible (>=2.1.2)" ,
     "PredictiveEcology/CBMutils@development (>=2.0.3.0005)",
     "PredictiveEcology/LandR@development"
@@ -40,13 +40,13 @@ defineModule(sim, list(
     expectsInput(
       objectName = "ecoLocatorURL", objectClass = "character", desc = "URL for `ecoLocator`"),
     expectsInput(
-      objectName = "spuLocator", objectClass = "sf|SpatRaster",
-      sourceURL = "https://drive.google.com/file/d/1D3O0Uj-s_QEgMW7_X-NhVsEZdJ29FBed",
+      objectName = "adminLocator", objectClass = "sf|SpatRaster",
+      sourceURL = "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000a21a_e.zip",
       desc = paste(
-        "Spatial data source of CBM-CFS3 spatial unit IDs.",
-        "Default is Canada's spatial units as polygon features.")),
+        "Spatial data source of Canada's administrative boundary names or CBM-CFS3 'admin_boundary_id'.",
+        "Default is Canada's provinces and territories as polygon features.")),
     expectsInput(
-      objectName = "spuLocatorURL", objectClass = "character", desc = "URL for `spuLocator`"),
+      objectName = "adminLocatorURL", objectClass = "character", desc = "URL for `adminLocator`"),
     expectsInput(
       objectName = "ageLocator", objectClass = "sf|SpatRaster",
       desc = "Spatial data source of cohort ages."),
@@ -126,19 +126,19 @@ defineModule(sim, list(
     expectsInput(
       objectName = "dbPath", objectClass = "character",
       sourceURL = "https://raw.githubusercontent.com/cat-cfs/libcbm_py/main/libcbm/resources/cbm_defaults_db/cbm_defaults_v1.2.8340.362.db",
-      desc = paste(
-        "Path to the CBM-CBM3 defaults database. ",
-        "Required if `disturbanceMeta` is missing the 'disturbance_type_id' column"))
+      desc = "Path to the CBM-CBM3 defaults database")
   ),
   outputObjects = bindrows(
     createsOutput(
       objectName = "standDT", objectClass = "data.table",
       desc = "Table of stand attributes.",
       columns = c(
-        pixelIndex      = "`masterRaster` cell index",
-        area            = "`masterRaster` cell area in meters",
-        ecozone         = "Canada ecozone ID extracted from input `ecoLocator`",
-        spatial_unit_id = "CBM-CFS3 spatial unit ID extracted from input `spuLocator`"
+        pixelIndex         = "`masterRaster` cell index",
+        area               = "`masterRaster` cell area in meters",
+        admin_name         = "Canada administrative boundary name extracted from `adminLocator`",
+        admin_boundary_id  = "CBM-CFS3 administrative boundary ID extracted from `adminLocator`",
+        ecozone            = "Canada ecozone ID extracted from `ecoLocator`",
+        spatial_unit_id    = "CBM-CFS3 spatial unit ID"
       )),
     createsOutput(
       objectName = "cohortDT", objectClass = "data.table",
@@ -294,10 +294,10 @@ Init <- function(sim) {
   # Set which columns come from which input object
   colInputs <- c(
     list(
-      ecozone         = sim$ecoLocator,
-      spatial_unit_id = sim$spuLocator,
-      ages            = sim$ageLocator,
-      curveID         = sim$gcIndexLocator
+      admin_name = sim$adminLocator,
+      ecozone    = sim$ecoLocator,
+      ages       = sim$ageLocator,
+      curveID    = sim$gcIndexLocator
     ),
     sim$cohortLocators
   )
@@ -369,6 +369,46 @@ Init <- function(sim) {
     rm(allPixDT_isNA)
   }
 
+  # Set CBM-CFS3 spatial_unit_id
+  if ("admin_name" %in% names(allPixDT)){
+
+    cbmDBcon <- DBI::dbConnect(RSQLite::dbDriver("SQLite"), sim$dbPath)
+    cbmDB <- list(
+      admin_boundary_tr = data.table::data.table(DBI::dbReadTable(cbmDBcon, "admin_boundary_tr")) |> subset(locale_id == 1),
+      spatial_unit      = data.table::data.table(DBI::dbReadTable(cbmDBcon, "spatial_unit"))
+    )
+    RSQLite::dbDisconnect(cbmDBcon)
+
+    if (is.character(allPixDT$admin_name)){
+
+      allPixDT <- merge(
+        allPixDT,
+        cbmDB$admin_boundary_tr[, .(admin_boundary_id, admin_name = name)],
+        by = "admin_name", all.x = TRUE)
+
+      if (any(is.na(allPixDT$admin_boundary_id))) stop(
+        "adminLocator name(s) not found in admin_boundary_tr:",
+        paste(shQuote(unique(subset(allPixDT, is.na(admin_boundary_id))$admin_name)),
+              collapse = ", "))
+
+    }else{
+
+      # Input is admin_boundary_id
+      data.table::setnames(allPixDT, "admin_name", "admin_boundary_id")
+      allPixDT <- merge(
+        allPixDT,
+        cbmDB$admin_boundary_tr[, .(admin_boundary_id, admin_name = name)],
+        by = "admin_boundary_id", all.x = TRUE)
+    }
+
+    # Set CBM-CFS3 spatial_unit_id
+    allPixDT <- merge(
+      allPixDT,
+      cbmDB$spatial_unit[, .(admin_boundary_id, ecozone = eco_boundary_id, spatial_unit_id = id)],
+      by = c("admin_boundary_id", "ecozone"), all.x = TRUE)
+    data.table::setkey(allPixDT, pixelIndex)
+  }
+
   # Adjust cohort ages
   if ("ages" %in% names(allPixDT) && !is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
 
@@ -398,7 +438,7 @@ Init <- function(sim) {
 
   # Create sim$standDT and sim$cohortDT
   sim$standDT <- allPixDT[, .SD, .SDcols = intersect(
-    c("pixelIndex", "area", "ecozone", "spatial_unit_id"), names(allPixDT))]
+    c("pixelIndex", "area", "admin_name", "admin_boundary_id", "ecozone", "spatial_unit_id"), names(allPixDT))]
   data.table::setkey(sim$standDT, pixelIndex)
 
   if (is.null(sim$cohortDT)){
@@ -529,6 +569,47 @@ Init <- function(sim) {
     )
   }
 
+  # Canada admin boundaries
+  if (!suppliedElsewhere("adminLocator", sim)){
+
+    if (suppliedElsewhere("adminLocatorURL", sim) &
+        !identical(sim$adminLocatorURL, extractURL("adminLocator"))){
+
+      sim$adminLocator <- prepInputs(
+        destinationPath = inputPath(sim),
+        url = sim$adminLocatorURL
+      )
+
+    }else{
+
+      sim$adminLocator <- prepInputs(
+        destinationPath = inputPath(sim),
+        url         = extractURL("adminLocator"),
+        filename1   = "lpr_000a21a_e.zip",
+        targetFile  = "lpr_000a21a_e.shp",
+        alsoExtract = "similar",
+        fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
+      )
+
+      # Split Newfoundland and Labrador; rename Yukon
+      sim$adminLocator <- cbind(name = sim$adminLocator$PRENAME, sim$adminLocator)
+
+      adminSplit <- terra::split(
+        terra::vect(sim$adminLocator),
+        terra::vect(sf::st_sfc(sf::st_linestring(rbind(c(8476500, 2297500), c(8565300, 2451300))),
+                               crs = sf::st_crs(sim$adminLocator))))
+      adminSplit <- sf::st_as_sf(adminSplit, agr = "constant")
+      sf::st_agr(adminSplit) <- "constant"
+
+      nl_cd <- sf::st_coordinates(sf::st_centroid(sf::st_geometry(
+        adminSplit[adminSplit$name == "Newfoundland and Labrador",])))
+      adminSplit[adminSplit$name == "Newfoundland and Labrador", "name"] <- sapply(
+        nl_cd[, "X"] == min(nl_cd[, "X"]), ifelse, "Labrador", "Newfoundland")
+
+      adminSplit[adminSplit$name == "Yukon", "name"] <- "Yukon Territory"
+    }
+  }
+
   # Canada ecozones
   if (!suppliedElsewhere("ecoLocator", sim)){
 
@@ -565,33 +646,6 @@ Init <- function(sim) {
 
       # Drop other fields
       sim$ecoLocator <- sim$ecoLocator[, "ECOZONE"]
-    }
-  }
-
-  # Canada CBM-CFS3 spatial units
-  if (!suppliedElsewhere("spuLocator", sim)){
-
-    if (suppliedElsewhere("spuLocatorURL", sim) &
-        !identical(sim$spuLocatorURL, extractURL("spuLocator"))){
-
-      sim$spuLocator <- prepInputs(
-        destinationPath = inputPath(sim),
-        url = sim$spuLocatorURL
-      )
-
-    }else{
-
-      sim$spuLocator <- prepInputs(
-        destinationPath = inputPath(sim),
-        url         = extractURL("spuLocator"),
-        filename1   = "spUnit_Locator.zip",
-        targetFile  = "spUnit_Locator.shp",
-        alsoExtract = "similar",
-        fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
-      )
-
-      # Drop other fields
-      sim$spuLocator <- sim$spuLocator[, "spu_id"]
     }
   }
 
