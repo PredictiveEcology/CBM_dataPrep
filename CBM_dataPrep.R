@@ -135,8 +135,8 @@ defineModule(sim, list(
       columns = c(
         pixelIndex         = "`masterRaster` cell index",
         area               = "`masterRaster` cell area in meters",
-        admin_name         = "Canada administrative boundary name extracted from `adminLocator`",
-        admin_boundary_id  = "CBM-CFS3 administrative boundary ID extracted from `adminLocator`",
+        admin_abbrev       = "Canada administrative abbreviation extracted from `adminLocator`",
+        admin_boundary_id  = "CBM-CFS3 administrative boundary ID",
         ecozone            = "Canada ecozone ID extracted from `ecoLocator`",
         spatial_unit_id    = "CBM-CFS3 spatial unit ID"
       )),
@@ -407,6 +407,25 @@ Init <- function(sim) {
         by = "admin_boundary_id", all.x = TRUE)
     }
 
+    # Set admin abbreviation
+    allPixDT$admin_abbrev <- c(
+      "Newfoundland"              = "NL",
+      "Labrador"                  = "NL",
+      "Newfoundland and Labrador" = "NL",
+      "Prince Edward Island"      = "PE",
+      "Nova Scotia"               = "NS",
+      "New Brunswick"             = "NB",
+      "Quebec"                    = "QC",
+      "Ontario"                   = "ON",
+      "Manitoba"                  = "MB",
+      "Alberta"                   = "AB",
+      "Saskatchewan"              = "SK",
+      "British Columbia"          = "BC",
+      "Yukon"                     = "YT",
+      "Yukon Territory"           = "YT",
+      "Northwest Territories"     = "NT",
+      "Nunavut"                   = "NU")[allPixDT$admin_name] |> unname()
+
     # Set CBM-CFS3 spatial_unit_id
     allPixDT <- merge(
       allPixDT,
@@ -444,13 +463,15 @@ Init <- function(sim) {
 
   # Create sim$standDT and sim$cohortDT
   sim$standDT <- allPixDT[, .SD, .SDcols = intersect(
-    c("pixelIndex", "area", "admin_name", "admin_boundary_id", "ecozone", "spatial_unit_id"), names(allPixDT))]
+    c("pixelIndex", "area", "admin_abbrev", "admin_boundary_id", "ecozone", "spatial_unit_id"),
+    names(allPixDT))]
   data.table::setkey(sim$standDT, pixelIndex)
 
   if (is.null(sim$cohortDT)){
     allPixDT[, cohortID := pixelIndex]
     sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
-      c("cohortID", "pixelIndex", "ages", "ageSpinup", "gcids", names(sim$cohortLocators)), names(allPixDT))]
+      c("cohortID", "pixelIndex", "ages", "ageSpinup", "gcids", names(sim$cohortLocators)),
+      names(allPixDT))]
     data.table::setkey(sim$cohortDT, cohortID)
   }
 
