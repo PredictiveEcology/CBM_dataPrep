@@ -607,6 +607,8 @@ Init <- function(sim) {
         nl_cd[, "X"] == min(nl_cd[, "X"]), ifelse, "Labrador", "Newfoundland")
 
       adminSplit[adminSplit$name == "Yukon", "name"] <- "Yukon Territory"
+
+      sim$adminLocator <- adminSplit
     }
   }
 
