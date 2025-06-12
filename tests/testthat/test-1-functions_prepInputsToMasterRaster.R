@@ -126,8 +126,9 @@ test_that("Function: prepInputsToMasterRaster", {
     ), tolerance = 10, scale = 1)
 
   # Prep sf polygons with text field
+  ## Make sure spaces and letter case are honored
   prepSF_text <- prepInputsToMasterRaster(
-    input = cbind(text = as.character(inSF[["id"]]), inSF),
+    input = cbind(text = paste("Id", inSF[["id"]]), inSF),
     masterRaster = masterRaster)
 
   if (interactive()) terra::writeRaster(
@@ -138,7 +139,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(val = terra::values(prepSF_text)[, 1])[, .N, by = "val"][order(val)]$N,
     data.table::data.table(val = terra::values(prepSF)[, 1])[, .N, by = "val"][order(val)]$N
   )
-  expect_setequal(terra::cats(prepSF_text)[[1]][[2]], c("1", "4", "5", "8"))
+  expect_setequal(terra::cats(prepSF_text)[[1]][[2]], c("Id 1", "Id 4", "Id 5", "Id 8"))
 
   ## Allow for NA areas
   masterRaster <- terra::rast(

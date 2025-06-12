@@ -91,9 +91,12 @@ test_that("Module: SK-small", {
   expect_identical(data.table::key(simTest$standDT), "pixelIndex")
 
   expect_equal(nrow(simTest$standDT), 31302)
-  expect_equal(simTest$standDT$pixelIndex,      1:31302)
-  expect_equal(simTest$standDT$area,            rep(900, 31302))
-  expect_equal(simTest$standDT$spatial_unit_id, rep(28, 31302))
+  expect_equal(simTest$standDT$pixelIndex, 1:31302)
+  expect_in(simTest$standDT$area,              30 * 30)
+  expect_in(simTest$standDT$admin_name,        "Saskatchewan")
+  expect_in(simTest$standDT$admin_boundary_id, 9)
+  expect_in(simTest$standDT$ecozone,           9)
+  expect_in(simTest$standDT$spatial_unit_id,   28)
 
 
   ## Check output 'cohortDT' ----
