@@ -379,6 +379,12 @@ Init <- function(sim) {
     )
     RSQLite::dbDisconnect(cbmDBcon)
 
+    ## Add a row for "Yukon"
+    cbmDB$admin_boundary_tr <- rbind(
+      cbmDB$admin_boundary_tr,
+      cbind(cbmDB$admin_boundary_tr[name == "Yukon Territory", !"name"], name = "Yukon")
+    )
+
     if (is.character(allPixDT$admin_name)){
 
       allPixDT <- merge(
@@ -591,7 +597,7 @@ Init <- function(sim) {
         fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
       )
 
-      # Split Newfoundland and Labrador; rename Yukon
+      # Split Newfoundland and Labrador
       sim$adminLocator <- cbind(name = sim$adminLocator$PRENAME, sim$adminLocator)
 
       adminSplit <- terra::split(
@@ -605,8 +611,6 @@ Init <- function(sim) {
         adminSplit[adminSplit$name == "Newfoundland and Labrador",])))
       adminSplit[adminSplit$name == "Newfoundland and Labrador", "name"] <- sapply(
         nl_cd[, "X"] == min(nl_cd[, "X"]), ifelse, "Labrador", "Newfoundland")
-
-      adminSplit[adminSplit$name == "Yukon", "name"] <- "Yukon Territory"
 
       sim$adminLocator <- adminSplit
     }
