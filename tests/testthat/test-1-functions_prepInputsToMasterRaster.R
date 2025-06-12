@@ -125,21 +125,36 @@ test_that("Function: prepInputsToMasterRaster", {
       N   = c(69052, 116674, 19458, 44816)
     ), tolerance = 10, scale = 1)
 
+  # Prep sf polygons with text field
+  prepSF_text <- prepInputsToMasterRaster(
+    input = cbind(text = as.character(inSF[["id"]]), inSF),
+    masterRaster = masterRaster)
+
+  if (interactive()) terra::writeRaster(
+    prepSF_text, tempfile("prepSF-text_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
+
+  expect_true(terra::compareGeom(prepSF_text, masterRaster, stopOnError = FALSE))
+  expect_equal(
+    data.table::data.table(val = terra::values(prepSF_text)[, 1])[, .N, by = "val"][order(val)]$N,
+    data.table::data.table(val = terra::values(prepSF)[, 1])[, .N, by = "val"][order(val)]$N
+  )
+  expect_setequal(terra::cats(prepSF_text)[[1]][[2]], c("1", "4", "5", "8"))
+
   ## Allow for NA areas
   masterRaster <- terra::rast(
     res = 10, vals = 1, crs = "EPSG:32613",
     ext = c(xmin =  456000,  xmax = 461000, ymin = 6105000, ymax = 6110000))
 
-  prepSF <- prepInputsToMasterRaster(
+  prepSF_NAs <- prepInputsToMasterRaster(
     input = subset(inSF[, "id"], id == 1),
     masterRaster = masterRaster)
 
   if (interactive()) terra::writeRaster(
-    prepSF, tempfile("prepSF-NAs_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
+    prepSF_NAs, tempfile("prepSF-NAs_", fileext = ".tif", tmpdir = spadesTestPaths$temp$outputs))
 
-  expect_true(terra::compareGeom(prepSF, masterRaster, stopOnError = FALSE))
+  expect_true(terra::compareGeom(prepSF_NAs, masterRaster, stopOnError = FALSE))
   expect_equal(
-    data.table::data.table(val = terra::values(prepSF)[, 1])[, .N, by = "val"][order(val)],
+    data.table::data.table(val = terra::values(prepSF_NAs)[, 1])[, .N, by = "val"][order(val)],
     data.table::data.table(
       val = c(1, NaN),
       N   = c(69052, 250000 - 69052)
