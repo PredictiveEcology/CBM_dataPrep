@@ -83,7 +83,7 @@ test_that("Module: SK-small", {
   expect_true(!is.null(simTest$standDT))
   expect_true(inherits(simTest$standDT, "data.table"))
 
-  for (colName in c("pixelIndex", "area", "admin_name", "admin_boundary_id", "ecozone", "spatial_unit_id")){
+  for (colName in c("pixelIndex", "area", "admin_abbrev", "admin_boundary_id", "ecozone", "spatial_unit_id")){
     expect_true(colName %in% names(simTest$standDT))
     expect_true(all(!is.na(simTest$standDT[[colName]])))
   }
@@ -93,7 +93,8 @@ test_that("Module: SK-small", {
   expect_equal(nrow(simTest$standDT), 31302)
   expect_equal(simTest$standDT$pixelIndex, 1:31302)
   expect_in(simTest$standDT$area,              30 * 30)
-  expect_in(simTest$standDT$admin_name,        "Saskatchewan")
+  #expect_in(simTest$standDT$admin_name,        "Saskatchewan") # Column excluded from result
+  expect_in(simTest$standDT$admin_abbrev,      "SK")
   expect_in(simTest$standDT$admin_boundary_id, 9)
   expect_in(simTest$standDT$ecozone,           9)
   expect_in(simTest$standDT$spatial_unit_id,   28)
