@@ -432,6 +432,13 @@ Init <- function(sim) {
       cbmDB$spatial_unit[, .(admin_boundary_id, ecozone = eco_boundary_id, spatial_unit_id = id)],
       by = c("admin_boundary_id", "ecozone"), all.x = TRUE)
     data.table::setkey(allPixDT, pixelIndex)
+
+    if (any(is.na(allPixDT$spatial_unit_id))){
+      noMatch <- unique(allPixDT[is.na(allPixDT$spatial_unit_id), .(ecozone, admin_name, spatial_unit_id)])
+      data.table::setkey(noMatch, admin_name, ecozone)
+      stop("spatial_unit_id not found for: ",
+           paste(paste(noMatch$admin_name, "ecozone", noMatch$ecozone), collapse = "; "))
+    }
   }
 
   # Adjust cohort ages
