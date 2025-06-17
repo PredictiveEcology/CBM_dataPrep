@@ -32,24 +32,26 @@ defineModule(sim, list(
     expectsInput(
       objectName = "masterRasterURL", objectClass = "character", desc = "URL for `masterRaster`"),
     expectsInput(
-      objectName = "ecoLocator", objectClass = "sf|SpatRaster",
+      objectName = "ecoLocator", objectClass = "sf|SpatRaster|numeric",
       sourceURL = "http://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip",
       desc = paste(
-        "Spatial data source of Canada ecozone IDs.",
+        "Spatial data source of Canada ecozone IDs",
+        "or a single value to use for all cohorts.",
         "Default is Canada's ecozones as polygon features.")),
     expectsInput(
       objectName = "ecoLocatorURL", objectClass = "character", desc = "URL for `ecoLocator`"),
     expectsInput(
-      objectName = "adminLocator", objectClass = "sf|SpatRaster",
+      objectName = "adminLocator", objectClass = "sf|SpatRaster|character",
       sourceURL = "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000a21a_e.zip",
       desc = paste(
-        "Spatial data source of Canada's administrative boundary names or CBM-CFS3 'admin_boundary_id'.",
+        "Spatial data source of Canada's administrative boundary names",
+        "or a single value to use for all cohorts.",
         "Default is Canada's provinces and territories as polygon features.")),
     expectsInput(
       objectName = "adminLocatorURL", objectClass = "character", desc = "URL for `adminLocator`"),
     expectsInput(
-      objectName = "ageLocator", objectClass = "sf|SpatRaster",
-      desc = "Spatial data source of cohort ages."),
+      objectName = "ageLocator", objectClass = "sf|SpatRaster|numeric",
+      desc = "Spatial data source of cohort ages or a single value to use for all cohorts."),
     expectsInput(
       objectName = "ageLocatorURL", objectClass = "character", desc = "URL for `ageLocator`"),
     expectsInput(
@@ -63,19 +65,21 @@ defineModule(sim, list(
         "Minimum age for cohorts during spinup.",
         "Temporary fix to CBM_core issue: https://github.com/PredictiveEcology/CBM_core/issues/1")),
     expectsInput(
-      objectName = "gcIndexLocator", objectClass = "sf|SpatRaster",
+      objectName = "gcIndexLocator", objectClass = "sf|SpatRaster|character",
       desc = paste(
-        "Spatial data source of growth curve locations.",
+        "Spatial data source of growth curve ID locations",
+        "or a single value to use for all cohorts.",
         "If provided, IDs will be added to the 'curveID' column of `cohortDT` and `curveID` will be set to 'curveID'")),
     expectsInput(
       objectName = "gcIndexLocatorURL", objectClass = "character", desc = "URL for `gcIndexLocator`"),
     expectsInput(
       objectName = "cohortLocators", objectClass = "list",
       desc = paste(
-        "List of spatial data sources for additional columns in `cohortDT`.",
+        "List of values or spatial data sources for additional columns in `cohortDT`.",
         "Each item may be a terra SpatRaster object,",
         "a character vector of multiple raster tiles,",
-        "or an sf polygons object.")),
+        "an sf polygons object,",
+        "or a single value to use for all cohorts.")),
     expectsInput(
       objectName = "cohortLocatorURLs", objectClass = "list", desc = "URLs for `cohortLocators`"),
     expectsInput(
@@ -320,23 +324,32 @@ Init <- function(sim) {
   )
   data.table::setkey(allPixDT, pixelIndex)
 
-  # Convert to SpatRaster, align with masterRaster, and add columns to table
   for (colName in names(colInputs)){
 
-    inAlign <- prepInputsToMasterRaster(
-      colInputs[[colName]],
-      sim$masterRaster
-    ) |> Cache()
+    if (is.vector(colInputs[[colName]]) && length(colInputs[[colName]]) == 1 &&
+        tryCatch(!file.exists(colInputs[[colName]]), error = function(e) TRUE)){
 
-    if (P(sim)$saveRasters){
-      outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(colName, ".tif"))
-      dir.create(dirname(outPath), recursive = TRUE, showWarnings = FALSE)
-      terra::writeRaster(inAlign, outPath, overwrite = TRUE)
-    }
+      # Set column as a single value
+      allPixDT[[colName]] <- colInputs[[colName]]
 
-    allPixDT[[colName]] <- terra::values(inAlign)[, 1]
-    if (!is.null(terra::cats(inAlign)[[1]])){
-      allPixDT[[colName]] <- terra::cats(inAlign)[[1]][[2]][allPixDT[[colName]]]
+    }else{
+
+      # Convert to SpatRaster, align with masterRaster, and add columns to table
+      inAlign <- prepInputsToMasterRaster(
+        colInputs[[colName]],
+        sim$masterRaster
+      ) |> Cache()
+
+      if (P(sim)$saveRasters){
+        outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(colName, ".tif"))
+        dir.create(dirname(outPath), recursive = TRUE, showWarnings = FALSE)
+        terra::writeRaster(inAlign, outPath, overwrite = TRUE)
+      }
+
+      allPixDT[[colName]] <- terra::values(inAlign)[, 1]
+      if (!is.null(terra::cats(inAlign)[[1]])){
+        allPixDT[[colName]] <- terra::cats(inAlign)[[1]][[2]][allPixDT[[colName]]]
+      }
     }
   }
 
