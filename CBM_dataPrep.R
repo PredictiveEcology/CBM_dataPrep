@@ -480,7 +480,7 @@ Init <- function(sim) {
   if (is.null(sim$cohortDT)){
     allPixDT[, cohortID := pixelIndex]
     sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
-      c("cohortID", "pixelIndex", "ages", "ageSpinup", "gcids", names(sim$cohortLocators)),
+      c("cohortID", "pixelIndex", "ages", "ageSpinup", "gcids", sim$curveID, names(sim$cohortLocators)),
       names(allPixDT))]
     data.table::setkey(sim$cohortDT, cohortID)
   }
