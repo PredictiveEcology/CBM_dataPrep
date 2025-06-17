@@ -393,8 +393,11 @@ Init <- function(sim) {
         by = "admin_name", all.x = TRUE)
 
       if (any(is.na(allPixDT$admin_boundary_id))) stop(
-        "adminLocator name(s) not found in admin_boundary_tr:",
+        "adminLocator name(s) not found in admin_boundary_tr: ",
         paste(shQuote(unique(subset(allPixDT, is.na(admin_boundary_id))$admin_name)),
+              collapse = ", "),
+        ". Choose from: ",
+        paste(shQuote(sort(cbmDB$admin_boundary_tr$name)),
               collapse = ", "))
 
     }else{
