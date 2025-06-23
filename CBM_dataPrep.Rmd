@@ -14,10 +14,10 @@ editor_options:
 ---
 ```{r setup-CBM_dataPrep, include = FALSE}
 ```
-# CBM_dataPrep_SK
+# CBM_dataPrep
 
 :::{.rmdimportant}
-This documentation is work in progress. Potential discrepancies and omissions may exist for the time being. If you find any, please contact us [here]("https://github.com/PredictiveEcology/CBM_datPrep/issues").
+This documentation is work in progress. Potential discrepancies and omissions may exist for the time being. If you find any, please contact us [here]("https://github.com/PredictiveEcology/CBM_dataPrep/issues").
 :::
 
 ## Overview
@@ -31,7 +31,19 @@ This documentation is work in progress. Potential discrepancies and omissions ma
 
 | Name | Class | Description | Source |
 |-----------------|-----------------|---------------------|-----------------|
-
+| masterRaster | SpatRaster | Raster of study area | User provided, for SK: [Google Drive](https://drive.google.com/file/d/1zUyFH8k6Ef4c_GiWMInKbwAl6m6gvLJW) |
+| ecoLocator | SpatRaster | Canada’s ecozone as polygon features with ecozone IDs | [Canadian Soil information Service](http://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip) |
+| adminLocator | SpatRaster | Spatial data source of Canada's administrative boundary names | |
+| ageLocator | SpatRaster | Spatial data source of cohort ages or a single value to use for all cohorts | |
+| ageDataYear | Numeric | Year that the ages in `ageLocator` represent | |
+| ageSpinupMin | Numeric | Minimum age for cohorts during spinup | |
+| gcIndexLocator | SpatRaster | Raster giving the growth curve value for each pixel | |
+| cohortLocators | List | List of values or spatial data sources for additional columns in `cohortDT` | |
+| curveID | Character | Column(s) uniquely defining each growth curve in `cohortDT`, `userGcMeta`, and `userGcM3` | |
+| userGcMeta | Data table | User provided growth curve data | Growth curve metadata for CBM_vol2biomass | |
+| gcMeta | Data table | Growth curve metadata | |
+| disturbanceRasters | List | Disturbance rasters for the study area for the duration of simulation | |
+| disturbanceMeta | Data table | Table defining the disturbance event types | |
 
 ## Module functioning
 
@@ -41,6 +53,13 @@ This documentation is work in progress. Potential discrepancies and omissions ma
 
 | Name | Class | Description |
 |------|-------|-------------|
+| standDT | Data table | Table of stand attributes. Stands can have 1 or more cohorts |
+| cohortDT | Data table | Table of cohort attributes |
+| userGcSPU | Data table | Table of growth curves and spatial unit combinations for each cohort |
+| userGcMeta | Data table | Growth curve metadata with additional species attributes |
+| gcMeta | Data table | Growth curve metadata |
+| disturbanceEvents | Data table | Table with disturbance events for each simulation year |
+| disturbanceMeta | Data table | Table defining disturbance event types |
 
 
 ## Links to other modules
