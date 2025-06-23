@@ -17,14 +17,13 @@ editor_options:
 # CBM_dataPrep
 
 :::{.rmdimportant}
-This documentation is work in progress. Potential discrepancies and omissions may exist for the time being. If you find any, please contact us [here]("https://github.com/PredictiveEcology/CBM_dataPrep/issues").
+This documentation is work in progress. Potential discrepancies and omissions may exist for the time being. If you find any, please contact us [here](https://github.com/PredictiveEcology/CBM_dataPrep/issues).
 :::
 
 ## Overview
-
+[CBM_dataPrep](https://github.com/PredictiveEcology/CBM_dataPrep.git) processes spatially explicit inputs for use in [CBM_vol2biomass_SK](https://github.com/PredictiveEcology/CBM_vol2biomass_SK.git) and [CBM_core](https://github.com/PredictiveEcology/CBM_core.git). In *SpaDES-speak*, it has two events, the `init` event (scheduled once) and the `readDisturbanceEvents` which processes disturbances (usually provided as rasters) into a table format used in [CBM_core](https://github.com/PredictiveEcology/CBM_core.git). [SpaDES](https://SpaDES.PredictiveEcology.org) was designed for spatially explicit modelling and provides a wide variety of tools to support it. [CBM_dataPrep](https://github.com/PredictiveEcology/CBM_dataPrep.git) makes use of these tools. We use an example that simulates a scenario where remotely-sensed disturbances are simulated in the managed forests of Saskatchewan from 1985 to 2011, as described in @boisvenue2016 (scenario = time horizon + disturbances).
 
 ## Background
-
 
 
 ## Inputs
@@ -46,8 +45,28 @@ This documentation is work in progress. Potential discrepancies and omissions ma
 | disturbanceMeta | Data table | Table defining the disturbance event types | |
 
 ## Module functioning
+[CBM_dataPrep_SK](https://github.com/PredictiveEcology/CBM_dataPrep_SK.git) has 2 events; the `init` event, which is run only once, and the `readDisturbanceEvents` event, which is repeated for each simulation year.
 
+### `init`
+This first event performs the majority of the data processing steps in this module. The study area's various spatial data is also processed into a table format for use in the [CBM_core](https://github.com/PredictiveEcology/CBM_core.git) and [CBM_vol2biomass_SK](https://github.com/PredictiveEcology/CBM_vol2biomass_SK.git) modules. This event is run only once.
 
+### `readDisturbanceEvents`
+This short event serves to process disturbance events for each simulation year. Separating this processing from the `init` event enables dynamic linkages to disturbance models. However, in our example, disturbances are provided in the form of remotely-sensed disturbance rasters. 
+
+### Disturbances
+There are 468 unique disturbance matrices identified in the defaults. Since root parameters and snag carbon transfer rates have hardwood and softwood specific rates, each disturbance has a hardwood and a softwood instance, which means we have 234 unique disturbances across Canada as defaults in this modelling system, one for hardwood and one for softwood. A user could add or modify the proportions transferred between pools to represent a disturbance (**NOTE THAT THIS WOULD HAVE TO HAPPEN IN THE CSVs, and even then would that work? Does libcbm point to those files? what if we change them? QUESTION FOR SCOTT, VINI and SUSAN**). 
+**Add a section on how one would modify the disturbance matrices**
+
+*Figure 1: Proportional carbon transfers between pools during a fire in Saskatchewan*
+
+![](https://raw.githubusercontent.com/PredictiveEcology/spadesCBM/main/manual/images/SKfireAlluvial.png){fig-align="center" width="600"}
+
+There are a series of helper functions in [CBMutils](https://github.com/PredictiveEcology/CBMutils.git) to help users explore and navigate disturbance matrices: 
+- [spuDist](https://github.com/PredictiveEcology/CBMutils/blob/25f9b873ed7c2303864fa1b2d9243b8a7e20663e/R/CBM-DB_disturbances.R#L275) for extracting the disturbances in a specific spatial unit,
+- [simDist()](https://github.com/PredictiveEcology/CBMutils/blob/25f9b873ed7c2303864fa1b2d9243b8a7e20663e/R/CBM-DB_disturbances.R#L458) which lists the disturbances used in a simulation, and
+- [seeDist()](https://github.com/PredictiveEcology/CBMutils/blob/25f9b873ed7c2303864fa1b2d9243b8a7e20663e/R/CBM-DB_disturbances.R#L388) which pulls out the proportions from source to sink pools.
+
+Because growth curves can be identified by strata, multiple columns can be used to identify growth curves using the `curveID` object. In our example, only **gcids** is used.
 
 ## Outputs
 
