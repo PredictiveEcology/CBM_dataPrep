@@ -59,7 +59,7 @@ There are 468 unique disturbance matrices identified in the defaults. Since root
 
 *Figure 1: Proportional carbon transfers between pools during a fire in Saskatchewan*
 
-![](https://raw.githubusercontent.com/PredictiveEcology/spadesCBM/main/manual/images/SKfireAlluvial.png){fig-align="center" width="600"}
+![](https://raw.githubusercontent.com/PredictiveEcology/spadesCBM/main/manual/images/WildfireAlluvial.png){fig-align="center" width="600"}
 
 There are a series of helper functions in [CBMutils](https://github.com/PredictiveEcology/CBMutils.git) to help users explore and navigate disturbance matrices: 
 - [spuDist](https://github.com/PredictiveEcology/CBMutils/blob/25f9b873ed7c2303864fa1b2d9243b8a7e20663e/R/CBM-DB_disturbances.R#L275) for extracting the disturbances in a specific spatial unit,
