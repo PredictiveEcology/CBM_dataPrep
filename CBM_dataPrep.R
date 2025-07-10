@@ -214,7 +214,11 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
       sim <- Init(sim)
 
       # Read disturbances
+      if ("NTEMS" %in% sim$disturbanceSource){
+        sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbancesNTEMS")
+      }
       sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbances", eventPriority = 8)
+
     },
 
     readDisturbances = {
@@ -228,30 +232,6 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
       # Retrieve disturbances from simList
       for (i in which(!is.na(distMeta$sourceObjectName))){
         distRasts[[as.character(distMeta[i,]$eventID)]] <- get(distMeta[i,]$sourceObjectName, envir = sim)
-      }
-
-      # Retrieve disturbances from known sources
-      if ("NTEMS" %in% sim$disturbanceSource & time(sim) %in% 1985:2020){
-
-        distMeta[distMeta$eventID == 1001,]$sourceValue <- as.integer(time(sim))
-        distMeta[distMeta$eventID == 1002,]$sourceValue <- as.integer(time(sim))
-
-        distRasts <- c(distRasts, lapply(
-          list(
-            `1001` = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip",
-            `1002` = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
-          ),
-          function(url){
-            reproducible::prepInputs(
-              url,
-              destinationPath = inputPath(sim),
-              filename1   = basename(url),
-              targetFile  = paste0(tools::file_path_sans_ext(basename(url)), ".tif"),
-              alsoExtract = "similar",
-              fun         = NA
-            ) |> Cache()
-          }
-        ))
       }
 
       # Summarize year events into a table
@@ -289,7 +269,6 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
               eventID    = eventIDs[[i]]
             ))
           }
-
           rm(distValues)
           rm(eventIndex)
 
@@ -305,7 +284,70 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
       # Schedule for next year
       sim <- scheduleEvent(sim, time(sim) + 1, "CBM_dataPrep", "readDisturbances", eventPriority = 8)
+    },
 
+    readDisturbancesNTEMS = {
+
+      if (any(c(1001, 1002) %in% sim$disturbanceMeta$eventID)) stop(
+        "NTEMS disturbances reserve eventIDs 1001 and 1002")
+
+      sourceURLs <- list(
+        `1001` = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip",
+        `1002` = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
+      )
+
+      sim$disturbanceMeta <- data.table::rbindlist(list(
+        sim$disturbanceMeta,
+        data.table(
+          eventID             = 1001,
+          disturbance_type_id = 1, # Wildfire
+          name                = "NTEMS CA Forest Fires 1985-2020",
+          sourceValue         = NA_integer_
+        ),
+        data.table(
+          eventID             = 1002,
+          disturbance_type_id = 7, # Deforestation
+          name                = "NTEMS CA Forest Harvest 1985-2020",
+          sourceValue         = NA_integer_
+        )
+      ), fill = TRUE)
+
+      for (eventID in names(sourceURLs)){
+
+        url <- sourceURLs[[eventID]]
+        sourceTIF <- reproducible::prepInputs(
+          url,
+          destinationPath = inputPath(sim),
+          filename1   = basename(url),
+          targetFile  = paste0(tools::file_path_sans_ext(basename(url)), ".tif"),
+          alsoExtract = "similar",
+          fun         = NA
+        ) |> Cache()
+
+        distAlign <- prepInputsToMasterRaster(
+          sourceTIF,
+          sim$masterRaster
+        ) |> Cache()
+
+        sim$disturbanceEvents <- rbind(sim$disturbanceEvents, {
+
+          data.table::data.table(
+            pixelIndex = 1:terra::ncell(distAlign),
+            year       = as.integer(
+              terra::values(distAlign, mat = FALSE) |> Cache()
+            ),
+            eventID    = eventID
+          ) |> subset(!is.na(year)) |> subset(year != 0)
+        })
+
+        if (P(sim)$saveRasters){
+          outPath <- file.path(
+            outputPath(sim), "CBM_dataPrep",
+            sprintf("distRast-NTEMS-%s.tif", eventID))
+          dir.create(dirname(outPath), recursive = TRUE, showWarnings = FALSE)
+          terra::writeRaster(distAlign, outPath, overwrite = TRUE)
+        }
+      }
     },
 
     warning(noEventWarning(sim))
@@ -599,28 +641,6 @@ Init <- function(sim) {
         ask    = askUser
       ) |> Cache()
     )
-  }
-
-  if ("NTEMS" %in% sim$disturbanceSource){
-
-    if (any(c(1001, 1002) %in% sim$disturbanceMeta$eventID)) stop(
-      "NTEMS disturbances reserve eventIDs 1001 and 1002")
-
-    sim$disturbanceMeta <- data.table::rbindlist(list(
-      sim$disturbanceMeta,
-      data.table(
-        eventID             = 1001,
-        disturbance_type_id = 1, # Wildfire
-        name                = "NTEMS CA Forest Fires 1985-2020",
-        sourceValue         = NA_integer_
-      ),
-      data.table(
-        eventID             = 1002,
-        disturbance_type_id = 7, # Deforestation
-        name                = "NTEMS CA Forest Harvest 1985-2020",
-        sourceValue         = NA_integer_
-      )
-    ), fill = TRUE)
   }
 
 
