@@ -53,13 +53,20 @@ prepInputsToMasterRaster <- function(input, masterRaster){
       }
     }
 
+    # Crop input
+    input <- terra::crop(
+      input,
+      terra::project(terra::as.polygons(masterRaster, extent = TRUE), terra::crs(input)),
+      snap = "out")
+
+    # Assign NAs to -1 so they are considered values in mode calculation
+    ## TODO: find a better method
+    input <- terra::classify(input, cbind(NA, -1))
+
     reproj <- !terra::compareGeom(
       input, masterRaster, lyrs = FALSE,
       crs = TRUE, ext = FALSE, rowcol = FALSE, res = FALSE,
       warncrs = FALSE, stopOnError = FALSE, messages = FALSE)
-
-    # Assign NAs to -1 so they are considered values in mode calculation
-    input <- terra::classify(input, cbind(NA, -1))
 
     if (reproj){
 
