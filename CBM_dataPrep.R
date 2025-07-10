@@ -115,6 +115,15 @@ defineModule(sim, list(
         "All non-NA areas will be considered events unless the 'sourceValue' column is set."
       )),
     expectsInput(
+      objectName = "disturbanceSource", objectClass = "character",
+      desc = paste(
+        "Names of known disturbance sources to use. Can be one or more of: 'NTEMS'.",
+        "NTEMS source: CA Forest Fires 1985-2020 and CA Forest Harvest 1985-2020 GeoTIFF layers.",
+          "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
+          "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
+          "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
+      )),
+    expectsInput(
       objectName = "disturbanceMeta", objectClass = "data.table",
       desc = "Table defining the disturbance event types",
       columns = c(
@@ -211,19 +220,38 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
     readDisturbances = {
 
       # Get disturbances for the year
-      if (length(sim$disturbanceRasters) > 0){
-
-        distRasts <- lapply(sim$disturbanceRasters, function(d){
-          if (as.character(time(sim)) %in% names(d)) d[[as.character(time(sim))]]
-        })
-
-      }else distRasts <- list()
+      distMeta  <- data.table::copy(data.table::as.data.table(sim$disturbanceMeta))
+      distRasts <- lapply(sim$disturbanceRasters, function(d){
+        if (as.character(time(sim)) %in% names(d)) d[[as.character(time(sim))]]
+      })
 
       # Retrieve disturbances from simList
-      for (i in which(!is.na(sim$disturbanceMeta$sourceObjectName))){
+      for (i in which(!is.na(distMeta$sourceObjectName))){
+        distRasts[[as.character(distMeta[i,]$eventID)]] <- get(distMeta[i,]$sourceObjectName, envir = sim)
+      }
 
-        distRasts[[as.character(sim$disturbanceMeta[i,]$eventID)]] <- get(
-          sim$disturbanceMeta[i,]$sourceObjectName, envir = sim)
+      # Retrieve disturbances from known sources
+      if ("NTEMS" %in% sim$disturbanceSource & time(sim) %in% 1985:2020){
+
+        distMeta[distMeta$eventID == 1001,]$sourceValue <- as.integer(time(sim))
+        distMeta[distMeta$eventID == 1002,]$sourceValue <- as.integer(time(sim))
+
+        distRasts <- c(distRasts, lapply(
+          list(
+            `1001` = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip",
+            `1002` = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
+          ),
+          function(url){
+            reproducible::prepInputs(
+              url,
+              destinationPath = inputPath(sim),
+              filename1   = basename(url),
+              targetFile  = paste0(tools::file_path_sans_ext(basename(url)), ".tif"),
+              alsoExtract = "similar",
+              fun         = NA
+            ) |> Cache()
+          }
+        ))
       }
 
       # Summarize year events into a table
@@ -240,7 +268,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
         for (i in 1:length(distRasts)){
 
-          distMeta <- if (!is.null(sim$disturbanceMeta)) subset(sim$disturbanceMeta, eventID == eventIDs[[i]])
+          distInfo <- if ("eventID" %in% names(distMeta)) subset(distMeta, eventID == eventIDs[[i]])
 
           distAlign <- prepInputsToMasterRaster(
             distRasts[[i]],
@@ -248,8 +276,8 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
           ) |> Cache()
 
           distValues <- terra::values(distAlign)[,1]
-          if (length(na.omit(distMeta$sourceValue)) == 1){
-            distValues[!distValues %in% distMeta$sourceValue] <- NA
+          if (length(na.omit(distInfo$sourceValue)) == 1){
+            distValues[!distValues %in% distInfo$sourceValue] <- NA
           }
 
           eventIndex <- which(!is.na(distValues))
@@ -257,7 +285,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
             sim$disturbanceEvents <- rbind(sim$disturbanceEvents, data.table::data.table(
               pixelIndex = eventIndex,
-              year       = as.integer(time(sim) + c(na.omit(distMeta$sourceDelay), 0)[[1]]),
+              year       = as.integer(time(sim) + c(na.omit(distInfo$sourceDelay), 0)[[1]]),
               eventID    = eventIDs[[i]]
             ))
           }
@@ -571,6 +599,28 @@ Init <- function(sim) {
         ask    = askUser
       ) |> Cache()
     )
+  }
+
+  if ("NTEMS" %in% sim$disturbanceSource){
+
+    if (any(c(1001, 1002) %in% sim$disturbanceMeta$eventID)) stop(
+      "NTEMS disturbances reserve eventIDs 1001 and 1002")
+
+    sim$disturbanceMeta <- data.table::rbindlist(list(
+      sim$disturbanceMeta,
+      data.table(
+        eventID             = 1001,
+        disturbance_type_id = 1, # Wildfire
+        name                = "NTEMS CA Forest Fires 1985-2020",
+        sourceValue         = NA_integer_
+      ),
+      data.table(
+        eventID             = 1002,
+        disturbance_type_id = 7, # Deforestation
+        name                = "NTEMS CA Forest Harvest 1985-2020",
+        sourceValue         = NA_integer_
+      )
+    ), fill = TRUE)
   }
 
 
