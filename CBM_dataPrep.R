@@ -211,13 +211,9 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
     readDisturbances = {
 
       # Get disturbances for the year
-      if (length(sim$disturbanceRasters) > 0){
-
-        distRasts <- lapply(sim$disturbanceRasters, function(d){
-          if (as.character(time(sim)) %in% names(d)) d[[as.character(time(sim))]]
-        })
-
-      }else distRasts <- list()
+      distRasts <- lapply(sim$disturbanceRasters, function(d){
+        if (as.character(time(sim)) %in% names(d)) d[[as.character(time(sim))]]
+      })
 
       # Retrieve disturbances from simList
       for (i in which(!is.na(sim$disturbanceMeta$sourceObjectName))){
@@ -247,23 +243,21 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
             sim$masterRaster
           ) |> Cache()
 
-          distValues <- terra::values(distAlign)[,1]
-          if (length(na.omit(distMeta$sourceValue)) == 1){
-            distValues[!distValues %in% distMeta$sourceValue] <- NA
-          }
+          sim$disturbanceEvents <- rbind(sim$disturbanceEvents, {
 
-          eventIndex <- which(!is.na(distValues))
-          if (length(eventIndex) > 0){
+            distValues <- terra::values(distAlign, mat = FALSE) |> Cache()
+            if (length(na.omit(distMeta$sourceValue)) == 1){
+              eventIndex <- which(distValues %in% distMeta$sourceValue)
+            }else{
+              eventIndex <- which(!is.na(distValues))
+            }
 
-            sim$disturbanceEvents <- rbind(sim$disturbanceEvents, data.table::data.table(
+            data.table::data.table(
               pixelIndex = eventIndex,
               year       = as.integer(time(sim) + c(na.omit(distMeta$sourceDelay), 0)[[1]]),
               eventID    = eventIDs[[i]]
-            ))
-          }
-
-          rm(distValues)
-          rm(eventIndex)
+            )
+          })
 
           if (P(sim)$saveRasters){
             outPath <- file.path(
@@ -320,9 +314,17 @@ Init <- function(sim) {
   # Initiate table
   allPixDT <- data.table::data.table(
     pixelIndex = 1:terra::ncell(sim$masterRaster),
-    area       = terra::values(terra::cellSize(sim$masterRaster, unit = "m", mask = TRUE, transform = FALSE))[,1]
-  )
-  data.table::setkey(allPixDT, pixelIndex)
+    key = "pixelIndex")
+
+  # Set cell area
+  if (!terra::is.lonlat(sim$masterRaster)){
+    allPixDT$area <- prod(terra::res(sim$masterRaster) * terra::linearUnits(sim$masterRaster))
+
+  }else{
+    masterRasterCellSize <- terra::cellSize(
+      sim$masterRaster, unit = "m", mask = FALSE, transform = FALSE) |> Cache()
+    allPixDT$area <- terra::values(masterRasterCellSize, mat = FALSE) |> Cache()
+  }
 
   for (colName in names(colInputs)){
 
@@ -340,21 +342,23 @@ Init <- function(sim) {
         sim$masterRaster
       ) |> Cache()
 
+      allPixDT[[colName]] <- terra::values(inAlign, mat = FALSE) |> Cache()
+      if (!is.null(terra::cats(inAlign)[[1]])){
+        allPixDT[[colName]] <- terra::cats(inAlign)[[1]][[2]][allPixDT[[colName]]]
+      }
+
       if (P(sim)$saveRasters){
         outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(colName, ".tif"))
         dir.create(dirname(outPath), recursive = TRUE, showWarnings = FALSE)
         terra::writeRaster(inAlign, outPath, overwrite = TRUE)
       }
-
-      allPixDT[[colName]] <- terra::values(inAlign)[, 1]
-      if (!is.null(terra::cats(inAlign)[[1]])){
-        allPixDT[[colName]] <- terra::cats(inAlign)[[1]][[2]][allPixDT[[colName]]]
-      }
     }
   }
 
   # Subset table to cells where masterRaster is not NA
-  allPixDT <- allPixDT[!is.na(terra::values(sim$masterRaster)[,1]),]
+  allPixDT <- allPixDT[!is.na(
+    terra::values(sim$masterRaster, mat = FALSE) |> Cache()
+  ),]
   if (nrow(allPixDT) == 0) stop("all masterRaster values are NA")
 
   # Remove pixels that are missing key attributes
