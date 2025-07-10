@@ -53,6 +53,9 @@ prepInputsToMasterRaster <- function(input, masterRaster){
       }
     }
 
+    # Keep only the first band
+    if (terra::nlyr(input) > 1) input <- input[[1]]
+
     # Crop input
     input <- terra::crop(
       input,
