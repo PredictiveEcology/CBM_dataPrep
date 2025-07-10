@@ -61,7 +61,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(val = terra::values(prepRast)[, 1])[, .N, by = "val"][order(val)],
     data.table::data.table(
       val = c(27, 28),
-      N   = c(16404, 29391)
+      N   = c(16369, 29426)
     ), tolerance = 50, scale = 1)
 
   # Prep raster file
@@ -122,7 +122,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(val = terra::values(prepSF)[, 1])[, .N, by = "val"][order(val)],
     data.table::data.table(
       val = c(1, 4, 5, 8),
-      N   = c(69052, 116674, 19458, 44816)
+      N   = c(69058, 116667, 19457, 44818)
     ), tolerance = 10, scale = 1)
 
   # Prep sf polygons with text field
@@ -158,7 +158,7 @@ test_that("Function: prepInputsToMasterRaster", {
     data.table::data.table(val = terra::values(prepSF_NAs)[, 1])[, .N, by = "val"][order(val)],
     data.table::data.table(
       val = c(1, NaN),
-      N   = c(69052, 250000 - 69052)
+      N   = c(69058, 250000 - 69058)
     ), tolerance = 10, scale = 1)
 })
 
