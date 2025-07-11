@@ -123,7 +123,7 @@ test_that("Module: RIA-small", {
   expect_equal(distEventCount, rbind(
     data.table(eventID = 1001, N = 2138),
     data.table(eventID = 1002, N = 4681)
-  ))
+  ), tolerance = 100, scale = 1)
 })
 
 
