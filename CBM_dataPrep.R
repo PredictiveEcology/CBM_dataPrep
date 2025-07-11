@@ -234,14 +234,26 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
           as.integer(names(distRasts)),
           error = function(e) stop("disturbanceRasters list names must be coercible to integer")))
 
+        masterRasterDigest <- digest::digest(sim$masterRaster)
         for (i in 1:length(distRasts)){
 
-          distMeta <- if (!is.null(sim$disturbanceMeta)) subset(sim$disturbanceMeta, eventID == eventIDs[[i]])
+          distMeta <- if (!is.null(sim$disturbanceMeta)){
+            x <- as.list(subset(sim$disturbanceMeta, eventID == eventIDs[[i]]))
+            x[!sapply(x, is.na)]
+          }else list(eventID = eventIDs[[1]])
+
+          with(distMeta, message(
+            time(sim), ": ",
+            "Reading disturbances for eventID = ", eventID,
+            if (exists("disturbance_type_id")) paste("; CBM type ID =", disturbance_type_id),
+            if (exists("name"))                paste("; name =", shQuote(name))))
 
           distAlign <- prepInputsToMasterRaster(
             distRasts[[i]],
-            sim$masterRaster
-          ) |> Cache()
+            masterRaster = sim$masterRaster
+          ) |> Cache(
+            omitArgs = "masterRaster",
+            .cacheExtra = list(masterRaster = masterRasterDigest))
 
           sim$disturbanceEvents <- rbind(sim$disturbanceEvents, {
 
@@ -260,9 +272,12 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
           })
 
           if (P(sim)$saveRasters){
+
             outPath <- file.path(
               outputPath(sim), "CBM_dataPrep",
-              sprintf("distRast_%s-%s_%s.tif", i, eventIDs[[i]], time(sim)))
+              sprintf("distEvents-%s_%s-%s.tif", eventIDs[[i]], time(sim), i))
+
+            message("Writing output of alignment to masterRaster: CBM_dataPrep/", basename(outPath))
             dir.create(dirname(outPath), recursive = TRUE, showWarnings = FALSE)
             terra::writeRaster(distAlign, outPath, overwrite = TRUE)
           }
@@ -326,6 +341,7 @@ Init <- function(sim) {
     allPixDT$area <- terra::values(masterRasterCellSize, mat = FALSE) |> Cache()
   }
 
+  masterRasterDigest <- digest::digest(sim$masterRaster)
   for (colName in names(colInputs)){
 
     if (is.vector(colInputs[[colName]]) && length(colInputs[[colName]]) == 1 &&
@@ -336,11 +352,15 @@ Init <- function(sim) {
 
     }else{
 
+      message("Extracting spatial input data into column '", colName, "'")
+
       # Convert to SpatRaster, align with masterRaster, and add columns to table
       inAlign <- prepInputsToMasterRaster(
         colInputs[[colName]],
-        sim$masterRaster
-      ) |> Cache()
+        masterRaster = sim$masterRaster
+      ) |> Cache(
+        omitArgs = "masterRaster",
+        .cacheExtra = list(masterRaster = masterRasterDigest))
 
       allPixDT[[colName]] <- terra::values(inAlign, mat = FALSE) |> Cache()
       if (!is.null(terra::cats(inAlign)[[1]])){
@@ -348,7 +368,10 @@ Init <- function(sim) {
       }
 
       if (P(sim)$saveRasters){
-        outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(colName, ".tif"))
+
+        outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0("input_", colName, ".tif"))
+
+        message("Writing output of alignment to masterRaster: CBM_dataPrep/", basename(outPath))
         dir.create(dirname(outPath), recursive = TRUE, showWarnings = FALSE)
         terra::writeRaster(inAlign, outPath, overwrite = TRUE)
       }
