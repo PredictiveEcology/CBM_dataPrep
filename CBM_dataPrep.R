@@ -306,30 +306,34 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
       if (any(c(1001, 1002) %in% sim$disturbanceMeta$eventID)) stop(
         "NTEMS disturbances reserve eventIDs 1001 and 1002")
 
-      sourceURLs <- list(
-        `1001` = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip",
-        `1002` = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
+      newDist <- rbind(
+        data.table(
+          eventID             = 1001L,
+          disturbance_type_id = 1, # Wildfire
+          name                = "NTEMS CA Forest Fires 1985-2020",
+          url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip"
+        ),
+        data.table(
+          eventID             = 1002L,
+          disturbance_type_id = 7, # Deforestation
+          name                = "NTEMS CA Forest Harvest 1985-2020",
+          url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
+        )
       )
 
       sim$disturbanceMeta <- data.table::rbindlist(list(
-        sim$disturbanceMeta,
-        data.table(
-          eventID             = 1001,
-          disturbance_type_id = 1, # Wildfire
-          name                = "NTEMS CA Forest Fires 1985-2020",
-          sourceValue         = NA_integer_
-        ),
-        data.table(
-          eventID             = 1002,
-          disturbance_type_id = 7, # Deforestation
-          name                = "NTEMS CA Forest Harvest 1985-2020",
-          sourceValue         = NA_integer_
-        )
-      ), fill = TRUE)
+        sim$disturbanceMeta, newDist[, 1:3]), fill = TRUE)
 
-      for (eventID in names(sourceURLs)){
+      masterRasterDigest <- digest::digest(sim$masterRaster)
+      for (i in 1:nrow(newDist)){
 
-        url <- sourceURLs[[eventID]]
+        with(newDist[i,], message(
+          time(sim), ": ",
+          "Reading disturbances for eventID = ", eventID,
+          "; CBM type ID = ", disturbance_type_id,
+          "; name = ", shQuote(name)))
+
+        url <- newDist[i,]$url
         sourceTIF <- reproducible::prepInputs(
           url,
           destinationPath = inputPath(sim),
@@ -341,8 +345,10 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
         distAlign <- prepInputsToMasterRaster(
           sourceTIF,
-          sim$masterRaster
-        ) |> Cache()
+          masterRaster = sim$masterRaster
+        ) |> Cache(
+          omitArgs = "masterRaster",
+          .cacheExtra = list(masterRaster = masterRasterDigest))
 
         sim$disturbanceEvents <- rbind(sim$disturbanceEvents, {
 
@@ -351,14 +357,15 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
             year       = as.integer(
               terra::values(distAlign, mat = FALSE) |> Cache()
             ),
-            eventID    = eventID
+            eventID    = newDist[i,]$eventID
           ) |> subset(!is.na(year)) |> subset(year != 0)
         })
 
         if (P(sim)$saveRasters){
-          outPath <- file.path(
-            outputPath(sim), "CBM_dataPrep",
-            sprintf("distRast-NTEMS-%s.tif", eventID))
+
+          outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(newDist[i,]$name, '.tif'))
+
+          message("Writing output of alignment to masterRaster: CBM_dataPrep/", basename(outPath))
           dir.create(dirname(outPath), recursive = TRUE, showWarnings = FALSE)
           terra::writeRaster(distAlign, outPath, overwrite = TRUE)
         }
