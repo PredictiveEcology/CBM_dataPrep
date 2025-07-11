@@ -315,7 +315,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
         ),
         data.table(
           eventID             = 1002L,
-          disturbance_type_id = 7, # Deforestation
+          disturbance_type_id = 204, # Clearcut harvesting without salvage
           name                = "NTEMS CA Forest Harvest 1985-2020",
           url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
         )
