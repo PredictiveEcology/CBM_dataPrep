@@ -115,6 +115,15 @@ defineModule(sim, list(
         "All non-NA areas will be considered events unless the 'sourceValue' column is set."
       )),
     expectsInput(
+      objectName = "disturbanceSource", objectClass = "character",
+      desc = paste(
+        "Names of known disturbance sources to use. Can be one or more of: 'NTEMS'.",
+        "NTEMS source: CA Forest Fires 1985-2020 and CA Forest Harvest 1985-2020 GeoTIFF layers.",
+          "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
+          "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
+          "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
+      )),
+    expectsInput(
       objectName = "disturbanceMeta", objectClass = "data.table",
       desc = "Table defining the disturbance event types",
       columns = c(
@@ -205,7 +214,11 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
       sim <- Init(sim)
 
       # Read disturbances
+      if ("NTEMS" %in% sim$disturbanceSource){
+        sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbancesNTEMS")
+      }
       sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbances", eventPriority = 8)
+
     },
 
     readDisturbances = {
@@ -286,7 +299,77 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
       # Schedule for next year
       sim <- scheduleEvent(sim, time(sim) + 1, "CBM_dataPrep", "readDisturbances", eventPriority = 8)
+    },
 
+    readDisturbancesNTEMS = {
+
+      if (any(c(1001, 1002) %in% sim$disturbanceMeta$eventID)) stop(
+        "NTEMS disturbances reserve eventIDs 1001 and 1002")
+
+      newDist <- rbind(
+        data.table(
+          eventID             = 1001L,
+          disturbance_type_id = 1, # Wildfire
+          name                = "NTEMS CA Forest Fires 1985-2020",
+          url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip"
+        ),
+        data.table(
+          eventID             = 1002L,
+          disturbance_type_id = 204, # Clearcut harvesting without salvage
+          name                = "NTEMS CA Forest Harvest 1985-2020",
+          url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
+        )
+      )
+
+      sim$disturbanceMeta <- data.table::rbindlist(list(
+        sim$disturbanceMeta, newDist[, 1:3]), fill = TRUE)
+
+      masterRasterDigest <- digest::digest(sim$masterRaster)
+      for (i in 1:nrow(newDist)){
+
+        with(newDist[i,], message(
+          time(sim), ": ",
+          "Reading disturbances for eventID = ", eventID,
+          "; CBM type ID = ", disturbance_type_id,
+          "; name = ", shQuote(name)))
+
+        url <- newDist[i,]$url
+        sourceTIF <- reproducible::prepInputs(
+          url,
+          destinationPath = inputPath(sim),
+          filename1   = basename(url),
+          targetFile  = paste0(tools::file_path_sans_ext(basename(url)), ".tif"),
+          alsoExtract = "similar",
+          fun         = NA
+        ) |> Cache()
+
+        distAlign <- prepInputsToMasterRaster(
+          sourceTIF,
+          masterRaster = sim$masterRaster
+        ) |> Cache(
+          omitArgs = "masterRaster",
+          .cacheExtra = list(masterRaster = masterRasterDigest))
+
+        sim$disturbanceEvents <- rbind(sim$disturbanceEvents, {
+
+          data.table::data.table(
+            pixelIndex = 1:terra::ncell(distAlign),
+            year       = as.integer(
+              terra::values(distAlign, mat = FALSE) |> Cache()
+            ),
+            eventID    = newDist[i,]$eventID
+          ) |> subset(!is.na(year)) |> subset(year != 0)
+        })
+
+        if (P(sim)$saveRasters){
+
+          outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(newDist[i,]$name, '.tif'))
+
+          message("Writing output of alignment to masterRaster: CBM_dataPrep/", basename(outPath))
+          dir.create(dirname(outPath), recursive = TRUE, showWarnings = FALSE)
+          terra::writeRaster(distAlign, outPath, overwrite = TRUE)
+        }
+      }
     },
 
     warning(noEventWarning(sim))
