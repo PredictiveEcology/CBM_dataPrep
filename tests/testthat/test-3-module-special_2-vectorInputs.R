@@ -97,7 +97,7 @@ test_that("Module: vector inputs", {
   expect_equal(nrow(simTest$cohortDT), 10000)
   expect_equal(simTest$cohortDT$cohortID,   1:10000)
   expect_equal(simTest$cohortDT$pixelIndex, 1:10000)
-  expect_in(simTest$cohortDT$ages,  10)
+  expect_in(simTest$cohortDT$age,  10)
   expect_in(simTest$cohortDT$curveID, "GC-1")
 
 })

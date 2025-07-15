@@ -159,7 +159,7 @@ defineModule(sim, list(
       columns = c(
         cohortID   = "`masterRaster` cell index",
         pixelIndex = "`masterRaster` cell index",
-        ages       = "Cohort ages extracted from input `ageLocator`",
+        age        = "Cohort ages extracted from input `ageLocator`",
         ageSpinup  = "Cohort ages raised to minimum of `ageSpinupMin` to use in the spinup",
         gcids      = "Growth curve ID unique to every spatial unit and `curveID`"
       )),
@@ -392,7 +392,7 @@ Init <- function(sim) {
     list(
       admin_name = sim$adminLocator,
       ecozone    = sim$ecoLocator,
-      ages       = sim$ageLocator,
+      age        = sim$ageLocator,
       curveID    = sim$gcIndexLocator
     ),
     sim$cohortLocators
@@ -568,7 +568,7 @@ Init <- function(sim) {
   }
 
   # Adjust cohort ages
-  if ("ages" %in% names(allPixDT) && !is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
+  if ("age" %in% names(allPixDT) && !is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
 
     # TODO: add step to adjust cohort ages to the simulation start year
     warning("Cohort age data is from ", sim$ageDataYear,
@@ -576,8 +576,8 @@ Init <- function(sim) {
   }
 
   # Set spinup age
-  if ("ages" %in% names(allPixDT) && !is.null(sim$ageSpinupMin)){
-    allPixDT[, ageSpinup := ages]
+  if ("age" %in% names(allPixDT) && !is.null(sim$ageSpinupMin)){
+    allPixDT[, ageSpinup := age]
     allPixDT[ageSpinup < sim$ageSpinupMin, ageSpinup := sim$ageSpinupMin]
   }
 
@@ -603,7 +603,7 @@ Init <- function(sim) {
   if (is.null(sim$cohortDT)){
     allPixDT[, cohortID := pixelIndex]
     sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
-      c("cohortID", "pixelIndex", "ages", "ageSpinup", "gcids", sim$curveID, names(sim$cohortLocators)),
+      c("cohortID", "pixelIndex", "gcids", "age", "ageSpinup", sim$curveID, names(sim$cohortLocators)),
       names(allPixDT))]
     data.table::setkey(sim$cohortDT, cohortID)
   }
