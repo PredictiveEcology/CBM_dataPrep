@@ -481,7 +481,7 @@ Init <- function(sim) {
 
       message(
         sum(rmRow), "/", nrow(allPixDT),
-        " pixel(s) removed due to NAs in: ",
+        " pixels removed due to NAs in: ",
         paste(shQuote(names(rmCol)[rmCol]), collapse = ", "))
 
       allPixDT <- allPixDT[!rmRow,]
