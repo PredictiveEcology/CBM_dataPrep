@@ -247,7 +247,6 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
           as.integer(names(distRasts)),
           error = function(e) stop("disturbanceRasters list names must be coercible to integer")))
 
-        masterRasterDigest <- digest::digest(sim$masterRaster)
         for (i in 1:length(distRasts)){
 
           distMeta <- if (!is.null(sim$disturbanceMeta)){
@@ -264,9 +263,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
           distAlign <- prepInputsToMasterRaster(
             distRasts[[i]],
             masterRaster = sim$masterRaster
-          ) |> Cache(
-            omitArgs = "masterRaster",
-            .cacheExtra = list(masterRaster = masterRasterDigest))
+          ) |> Cache()
 
           sim$disturbanceEvents <- rbind(sim$disturbanceEvents, {
 
@@ -324,7 +321,6 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
       sim$disturbanceMeta <- data.table::rbindlist(list(
         sim$disturbanceMeta, newDist[, 1:3]), fill = TRUE)
 
-      masterRasterDigest <- digest::digest(sim$masterRaster)
       for (i in 1:nrow(newDist)){
 
         with(newDist[i,], message(
@@ -346,9 +342,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
         distAlign <- prepInputsToMasterRaster(
           sourceTIF,
           masterRaster = sim$masterRaster
-        ) |> Cache(
-          omitArgs = "masterRaster",
-          .cacheExtra = list(masterRaster = masterRasterDigest))
+        ) |> Cache()
 
         sim$disturbanceEvents <- rbind(sim$disturbanceEvents, {
 
@@ -424,7 +418,6 @@ Init <- function(sim) {
     allPixDT$area <- terra::values(masterRasterCellSize, mat = FALSE) |> Cache()
   }
 
-  masterRasterDigest <- digest::digest(sim$masterRaster)
   for (colName in names(colInputs)){
 
     if (is.vector(colInputs[[colName]]) && length(colInputs[[colName]]) == 1 &&
@@ -441,9 +434,7 @@ Init <- function(sim) {
       inAlign <- prepInputsToMasterRaster(
         colInputs[[colName]],
         masterRaster = sim$masterRaster
-      ) |> Cache(
-        omitArgs = "masterRaster",
-        .cacheExtra = list(masterRaster = masterRasterDigest))
+      ) |> Cache()
 
       allPixDT[[colName]] <- terra::values(inAlign, mat = FALSE) |> Cache()
       if (!is.null(terra::cats(inAlign)[[1]])){
