@@ -13,17 +13,31 @@ prepInputsToMasterRaster <- function(input, masterRaster){
   if (inherits(input, "sf")){
 
     # Crop and reproject
+    cropBBOX <- sf::st_buffer(
+      sf::st_as_sfc(sf::st_transform(sf::st_bbox(masterRaster), sf::st_crs(input))),
+      terra::res(masterRaster)[[1]])
+
     input <- withCallingHandlers(
-      postProcess(
-        input,
-        cropTo    = masterRaster,
-        projectTo = masterRaster
-      ),
+      sf::st_crop(input, sf::st_bbox(cropBBOX)),
       warning = function(w){
         if (w$message == "attribute variables are assumed to be spatially constant throughout all geometries"){
           invokeRestart("muffleWarning")
         }
       })
+    input <- sf::st_transform(input, sf::st_crs(masterRaster))
+
+    ## Observed to be slow in some cases
+    # input <- withCallingHandlers(
+    #   postProcess(
+    #     input,
+    #     cropTo    = masterRaster,
+    #     projectTo = masterRaster
+    #   ),
+    #   warning = function(w){
+    #     if (w$message == "attribute variables are assumed to be spatially constant throughout all geometries"){
+    #       invokeRestart("muffleWarning")
+    #     }
+    #   })
 
     # Rasterize
     cellIdxRast <- exactextractr::rasterize_polygons(
