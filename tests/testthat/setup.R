@@ -15,6 +15,7 @@ source(tempScript)
 # Set up testing directories and global options
 SpaDEStestSetGlobalOptions()
 spadesTestPaths <- SpaDEStestSetUpDirectories()
+for (f in list.files(file.path(spadesTestPaths$RProj, "R"), pattern = "\\.R$", full = TRUE)) source(f)
 
 # Install required packages
 withr::with_options(c(timeout = 600), Require::Install(
