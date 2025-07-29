@@ -26,7 +26,7 @@ prepInputsExtractSpatial <- function(input, masterRaster, outPath = NULL, verbos
   if (verbose) message("Extracting values from aligned raster")
   alignVals <- terra::values(alignRast, mat = FALSE)
 
-  # Set values as text
+  # Set values from categories
   alignCats <- terra::cats(alignRast)[[1]]
   if (!is.null(alignCats)) alignVals <- alignCats[[2]][alignVals]
 
@@ -144,16 +144,12 @@ prepInputsToMasterRaster_vect <- function(input, masterRaster){
   # Rasterize
   cellIdxRast <- exactextractr::rasterize_polygons(
     input, masterRaster, min_coverage = 0.5)
+  terra::crs(cellIdxRast) <- terra::crs(masterRaster)
 
-  rclTable <- data.frame(from = 1:nrow(input), to = input[[1]])
-  if (is.character(rclTable$to)){
+  # Set raster categories
+  levels(cellIdxRast) <- cbind(rastID = 1:nrow(input), sf::st_drop_geometry(input))
 
-    levels(cellIdxRast) <- rclTable
-    cellIdxRast
-
-  }else{
-    terra::classify(cellIdxRast, rcl = rclTable)
-  }
+  return(cellIdxRast)
 }
 
 
