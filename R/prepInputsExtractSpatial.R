@@ -88,6 +88,11 @@ prepInputsToMasterRaster_rast <- function(input, masterRaster){
   # Keep only the first band
   if (terra::nlyr(input) > 1) input <- input[[1]]
 
+  reproject <- !terra::compareGeom(
+    input, masterRaster,
+    crs = TRUE, warncrs = FALSE, stopOnError = FALSE, messages = FALSE,
+    lyrs = FALSE, ext = FALSE, rowcol = FALSE, res = FALSE)
+
   # Crop input
   input <- terra::crop(
     input,
@@ -98,18 +103,13 @@ prepInputsToMasterRaster_rast <- function(input, masterRaster){
   ## TODO: find a better method
   input <- terra::classify(input, cbind(NA, -1))
 
-  reproj <- !terra::compareGeom(
-    input, masterRaster, lyrs = FALSE,
-    crs = TRUE, ext = FALSE, rowcol = FALSE, res = FALSE,
-    warncrs = FALSE, stopOnError = FALSE, messages = FALSE)
-
-  if (reproj){
+  if (reproject){
 
     input <- terra::project(input, masterRaster, method = "mode")
 
   }else{
 
-    terra::crs(masterRaster) <- terra::crs(input)
+    terra::crs(input) <- terra::crs(masterRaster)
     input <- exactextractr::exact_resample(input, masterRaster, fun = "mode")
   }
 
