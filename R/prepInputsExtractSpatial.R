@@ -121,25 +121,33 @@ prepInputsToMasterRaster_rast <- function(input, masterRaster){
 prepInputsToMasterRaster_vect <- function(input, masterRaster){
 
   # Crop and reproject
+  reproject <- !terra::compareGeom(
+    terra::rast(crs = terra::crs(input)), masterRaster,
+    crs = TRUE, warncrs = FALSE, stopOnError = FALSE, messages = FALSE,
+    lyrs = FALSE, ext = FALSE, rowcol = FALSE, res = FALSE)
+
   cropBBOX <- sf::st_buffer(
-    sf::st_as_sfc(sf::st_transform(sf::st_bbox(masterRaster), sf::st_crs(input))),
-    terra::res(masterRaster)[[1]])
+    sf::st_as_sfc(sf::st_bbox(masterRaster)), terra::res(masterRaster)[[1]],
+    joinStyle = "MITRE", mitreLimit = 2)
 
-  input <- withCallingHandlers(
-    sf::st_crop(input, sf::st_bbox(cropBBOX)),
-    warning = function(w){
-      if (w$message == "attribute variables are assumed to be spatially constant throughout all geometries"){
-        invokeRestart("muffleWarning")
-      }
-    })
-  input <- sf::st_transform(input, sf::st_crs(masterRaster))
+  .muffleWarningAgr <- function(w){
+    agrWarning <- "attribute variables are assumed to be spatially constant throughout all geometries"
+    if (w$message == agrWarning) invokeRestart("muffleWarning")
+  }
 
-  ## Observed to be slow in some cases
-  # input <- postProcess(
-  #     input,
-  #     cropTo    = masterRaster,
-  #     projectTo = masterRaster
-  #   )
+  if (reproject){
+
+    input <- withCallingHandlers(
+      sf::st_intersection(input, sf::st_transform(cropBBOX, sf::st_crs(input))),
+      warning = .muffleWarningAgr)
+    sf::st_geometry(input) <- sf::st_transform(sf::st_geometry(input), sf::st_crs(masterRaster))
+
+  }else{
+
+    input <- withCallingHandlers(
+      sf::st_crop(input, cropBBOX),
+      warning = .muffleWarningAgr)
+  }
 
   # Rasterize
   cellIdxRast <- exactextractr::rasterize_polygons(
