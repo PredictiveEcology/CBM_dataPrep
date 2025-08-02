@@ -130,6 +130,34 @@ test_that("Function: prepInputsExtractSpatial: sf polygons with numeric field", 
   input <- subset(input, id != 8)
 
   masterRaster <- terra::rast(
+    res = 100, vals = 1, crs = terra::crs(input),
+    ext = round(terra::ext(input)))
+
+  alignVals <- prepInputsExtractSpatial(input, masterRaster, outPath = outPath, verbose = FALSE)
+  alignRas  <- terra::rast(outPath)
+
+  expect_true(terra::compareGeom(alignRas, masterRaster, stopOnError = FALSE))
+  expect_is(alignVals, "numeric")
+  expect_equal(
+    data.table::data.table(val = alignVals)[, .N, by = "val"][order(val)],
+    data.table::data.table(
+      val = c(1, 2, 3, 4, 5, 6, 7, NaN),
+      N   = c(58876, 17794, 1939, 161340, 26220, 26934, 49538, 22779)
+    ), tolerance = 10, scale = 1)
+})
+
+test_that("Function: prepInputsExtractSpatial: sf polygons with numeric field: reproject", {
+
+  outPath <- tempfile("sf-numeric-reproject_", fileext = ".tif", tmpdir = tempDir)
+
+  input <- sf::st_read(
+    file.path(spadesTestPaths$testdata, "spuLocator.shp"), agr = "constant",
+    quiet = TRUE)[, "id"]
+
+  ## Create an NA area
+  input <- subset(input, id != 8)
+
+  masterRaster <- terra::rast(
     res = 10, vals = 1, crs = "EPSG:32613",
     ext = c(xmin =  456000,  xmax = 461000, ymin = 6105000, ymax = 6110000))
 
@@ -146,9 +174,9 @@ test_that("Function: prepInputsExtractSpatial: sf polygons with numeric field", 
     ), tolerance = 10, scale = 1)
 })
 
-test_that("Function: prepInputsExtractSpatial: sf polygons with text field", {
+test_that("Function: prepInputsExtractSpatial: sf polygons with text field: reproject", {
 
-  outPath <- tempfile("sf-text_", fileext = ".tif", tmpdir = tempDir)
+  outPath <- tempfile("sf-text-reproject_", fileext = ".tif", tmpdir = tempDir)
 
   input <- sf::st_read(
     file.path(spadesTestPaths$testdata, "spuLocator.shp"), agr = "constant",
