@@ -444,6 +444,8 @@ Init <- function(sim) {
     if (any(allPixDT_isNA)){
 
       rmRow <- apply(allPixDT_isNA, 1, any)
+
+      allPixDT_isNA <- allPixDT_isNA[rmRow,]
       rmCol <- apply(allPixDT_isNA, 2, any)
 
       if (all(rmRow)) stop(
