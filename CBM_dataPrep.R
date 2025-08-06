@@ -444,7 +444,7 @@ Init <- function(sim) {
     if (any(allPixDT_isNA)){
 
       rmRow <- apply(allPixDT_isNA, 1, any)
-      rmCol <- apply(allPixDT_isNA, 2, any)
+      rmCol <- apply(allPixDT_isNA[rmRow,], 2, any)
 
       if (all(rmRow)) stop(
         "All pixels invalid due to NAs in: ",
