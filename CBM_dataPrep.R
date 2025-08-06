@@ -18,7 +18,7 @@ defineModule(sim, list(
   reqdPkgs = list(
     "data.table", "RSQLite", "sf", "terra", "exactextractr",
     "reproducible (>=2.1.2)" ,
-    "PredictiveEcology/CBMutils@development (>=2.0.3.0010)",
+    "PredictiveEcology/CBMutils@development (>=2.0.4)",
     "PredictiveEcology/LandR@development"
   ),
   parameters = rbind(
@@ -262,12 +262,6 @@ ReadDisturbancesNTEMS <- function(sim){
 
   newEvents <- lapply(1:nrow(newDist), function(i){
 
-    with(newDist[i,], message(
-      time(sim), ": ",
-      "Reading disturbances for eventID = ", eventID,
-      "; CBM type ID = ", disturbance_type_id,
-      "; name = ", shQuote(name)))
-
     url <- newDist[i,]$url
     sourceTIF <- reproducible::prepInputs(
       url,
@@ -278,11 +272,19 @@ ReadDisturbancesNTEMS <- function(sim){
       fun         = NA
     ) |> Cache()
 
-    distValues <- prepInputsExtractSpatial(
-      sourceTIF,
-      masterRaster = sim$masterRaster,
-      outPath = if (P(sim)$saveRasters) file.path(outputPath(sim), "CBM_dataPrep", paste0(newDist[i,]$name, '.tif'))
-    ) |> Cache()
+    with(newDist[i,], message(
+      time(sim), ": ",
+      "Reading disturbances for eventID = ", eventID,
+      "; CBM type ID = ", disturbance_type_id,
+      "; name = ", shQuote(name)))
+
+    distValues <- CBMutils::extractToRast(sourceTIF, sim$masterRaster) |> Cache()
+
+    if (P(sim)$saveRasters){
+      outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(newDist[i,]$name, '.tif'))
+      message("Writing aligned raster to path: ", outPath)
+      CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE)
+    }
 
     data.table::data.table(
       pixelIndex = 1:length(distValues),
@@ -335,13 +337,14 @@ ReadDisturbances <- function(sim){
       if (exists("disturbance_type_id")) paste("; CBM type ID =", disturbance_type_id),
       if (exists("name"))                paste("; name =", shQuote(name))))
 
-    distValues <- prepInputsExtractSpatial(
-      distRasts[[i]],
-      masterRaster = sim$masterRaster,
-      outPath = if (P(sim)$saveRasters) file.path(
-        outputPath(sim), "CBM_dataPrep",
-        sprintf("distEvents-%s_%s-%s.tif", eventIDs[[i]], time(sim), i))
-    ) |> Cache()
+    distValues <- CBMutils::extractToRast(distRasts[[i]], sim$masterRaster) |> Cache()
+
+    if (P(sim)$saveRasters){
+      outPath <- file.path(outputPath(sim), "CBM_dataPrep", sprintf(
+        "distEvents-%s_%s-%s.tif", eventIDs[[i]], time(sim), i))
+      message("Writing aligned raster to path: ", outPath)
+      CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE)
+    }
 
     if (length(na.omit(distMeta$sourceValue)) == 1){
       eventIndex <- which(distValues %in% distMeta$sourceValue)
@@ -419,12 +422,13 @@ Init <- function(sim) {
     }else{
 
       message("Extracting spatial input data into column '", colName, "'")
+      allPixDT[[colName]] <- CBMutils::extractToRast(colInputs[[colName]], sim$masterRaster) |> Cache()
 
-      allPixDT[[colName]] <- prepInputsExtractSpatial(
-        colInputs[[colName]],
-        masterRaster = sim$masterRaster,
-        outPath = if (P(sim)$saveRasters) file.path(outputPath(sim), "CBM_dataPrep", paste0("input_", colName, ".tif"))
-      ) |> Cache()
+      if (P(sim)$saveRasters){
+        outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0("input_", colName, ".tif"))
+        message("Writing aligned raster to path: ", outPath)
+        CBMutils::writeRasterWithValues(sim$masterRaster, allPixDT[[colName]], outPath, overwrite = TRUE)
+      }
     }
   }
 
