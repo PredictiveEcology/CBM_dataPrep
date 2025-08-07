@@ -440,29 +440,27 @@ Init <- function(sim) {
 
   # Remove pixels that are missing key attributes
   if (length(colInputs) > 0){
-    allPixDT_isNA <- is.na(allPixDT)
-    if (any(allPixDT_isNA)){
 
-      rmRow <- apply(allPixDT_isNA, 1, any)
+    isNA <- sapply(names(colInputs), function(col) is.na(allPixDT[[col]]))
+    rmRow <- apply(isNA, 1, any)
 
-      allPixDT_isNA <- allPixDT_isNA[rmRow,]
-      rmCol <- apply(allPixDT_isNA, 2, any)
+    if (all(rmRow)){
+      hasNA <- apply(isNA, 2, any)
+      stop("All pixels invalid due to NAs in: ",
+           paste(shQuote(names(hasNA)[hasNA]), collapse = ", "))
+    }
 
-      if (all(rmRow)) stop(
-        "All pixels invalid due to NAs in: ",
-        paste(shQuote(names(rmCol)[rmCol]), collapse = ", "))
+    if (any(rmRow)){
 
-      message(
-        sum(rmRow), "/", nrow(allPixDT),
-        " pixels removed due to NAs in: ",
-        paste(shQuote(names(rmCol)[rmCol]), collapse = ", "))
+      message(sum(rmRow), "/", nrow(allPixDT),
+              " pixels removed due to NAs in one or more of: ",
+              paste(shQuote(names(colInputs)), collapse = ", "))
 
       allPixDT <- allPixDT[!rmRow,]
-
-      rm(rmRow)
-      rm(rmCol)
     }
-    rm(allPixDT_isNA)
+
+    rm(isNA)
+    rm(rmRow)
   }
 
   # Set CBM-CFS3 spatial_unit_id
