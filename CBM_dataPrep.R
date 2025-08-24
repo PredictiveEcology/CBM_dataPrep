@@ -446,7 +446,7 @@ Init <- function(sim) {
 
     if (any(hasNA)){
 
-      allPixDT <- allPixDT[rowSums(isNA[, hasNA]) == 0,]
+      allPixDT <- allPixDT[rowSums(isNA[, hasNA, drop = FALSE]) == 0,]
 
       rmMsg <- paste0(
         round((1 - nrow(allPixDT) / nrow(isNA)) * 100, 2),
