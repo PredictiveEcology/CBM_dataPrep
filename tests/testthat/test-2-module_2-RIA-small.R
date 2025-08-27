@@ -5,26 +5,23 @@ test_that("Module: RIA-small", {
 
   ## Run simInit and spades ----
 
-  # Set project path
-  projectPath <- file.path(spadesTestPaths$temp$projects, "2-module_2-RIA-small")
-  dir.create(projectPath)
-  withr::local_dir(projectPath)
-
   # Set up project
+  projectName <- "2-module_2-RIA-small"
+  times       <- list(start = 2020, end = 2021)
+
   simInitInput <- SpaDEStestMuffleOutput(
 
     SpaDES.project::setupProject(
 
-      times = list(start = 2020, end = 2021),
-
       modules = "CBM_dataPrep",
+      times   = times,
       paths   = list(
-        projectPath = projectPath,
+        projectPath = spadesTestPaths$projectPath,
         modulePath  = spadesTestPaths$modulePath,
         packagePath = spadesTestPaths$packagePath,
         inputPath   = spadesTestPaths$inputPath,
         cachePath   = spadesTestPaths$cachePath,
-        outputPath  = file.path(projectPath, "outputs")
+        outputPath  = file.path(spadesTestPaths$temp$outputs, projectName)
       ),
 
       # Set required packages for project set up

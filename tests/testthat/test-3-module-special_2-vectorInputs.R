@@ -5,26 +5,23 @@ test_that("Module: vector inputs", {
 
   ## Run simInit and spades ----
 
-  # Set project path
-  projectPath <- file.path(spadesTestPaths$temp$projects, "3-module-special_2-vectorInputs")
-  dir.create(projectPath)
-  withr::local_dir(projectPath)
-
   # Set up project
+  projectName <- "3-module-special_2-vectorInputs"
+  times       <- list(start = 2025, end = 2025)
+
   simInitInput <- SpaDEStestMuffleOutput(
 
     SpaDES.project::setupProject(
 
-      times = list(start = 2025, end = 2025),
-
       modules = "CBM_dataPrep",
+      times   = times,
       paths   = list(
-        projectPath = projectPath,
+        projectPath = spadesTestPaths$projectPath,
         modulePath  = spadesTestPaths$modulePath,
         packagePath = spadesTestPaths$packagePath,
         inputPath   = spadesTestPaths$inputPath,
         cachePath   = spadesTestPaths$cachePath,
-        outputPath  = file.path(projectPath, "outputs")
+        outputPath  = file.path(spadesTestPaths$temp$outputs, projectName)
       ),
 
       # Set required packages for project set up
