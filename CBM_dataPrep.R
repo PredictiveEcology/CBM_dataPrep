@@ -372,6 +372,7 @@ Init <- function(sim) {
     if (!is.list(sim$cohortLocators) || is.null(names(sim$cohortLocators))) stop(
       "'cohortLocators' must be a named list")
     if (any(is.na(names(sim$cohortLocators)))) stop("'cohortLocators' names contains NAs")
+    sim$cohortLocators <- sim$cohortLocators[sapply(sim$cohortLocators, !is.null)]
   }
 
   # Set which columns come from which input object
