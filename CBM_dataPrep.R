@@ -599,6 +599,10 @@ Init <- function(sim) {
           )), fill = TRUE)
       }
 
+      if (!data.table::is.data.table(sim[[gcMetaTable]])){
+        sim[[gcMetaTable]] <- data.table::as.data.table(sim[[gcMetaTable]])
+      }
+
       sppMatchTable <- CBMutils::sppMatch(
         sim[[gcMetaTable]]$species,
         sppEquivalencies = sppEquiv,
