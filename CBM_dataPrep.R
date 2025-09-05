@@ -283,7 +283,9 @@ ReadDisturbancesNTEMS <- function(sim){
     if (P(sim)$saveRasters){
       outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(newDist[i,]$name, '.tif'))
       message("Writing aligned raster to path: ", outPath)
-      CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE)
+      tryCatch(
+        CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE),
+        error = function(e) warning(e$message, call. = FALSE))
     }
 
     data.table::data.table(
@@ -343,7 +345,9 @@ ReadDisturbances <- function(sim){
       outPath <- file.path(outputPath(sim), "CBM_dataPrep", sprintf(
         "distEvents-%s_%s-%s.tif", eventIDs[[i]], time(sim), i))
       message("Writing aligned raster to path: ", outPath)
-      CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE)
+      tryCatch(
+        CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE),
+        error = function(e) warning(e$message, call. = FALSE))
     }
 
     if (length(na.omit(distMeta$sourceValue)) == 1){
@@ -428,7 +432,9 @@ Init <- function(sim) {
       if (P(sim)$saveRasters){
         outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0("input_", colName, ".tif"))
         message("Writing aligned raster to path: ", outPath)
-        CBMutils::writeRasterWithValues(sim$masterRaster, allPixDT[[colName]], outPath, overwrite = TRUE)
+        tryCatch(
+          CBMutils::writeRasterWithValues(sim$masterRaster, allPixDT[[colName]], outPath, overwrite = TRUE),
+          error = function(e) warning(e$message, call. = FALSE))
       }
     }
   }
