@@ -612,14 +612,15 @@ Init <- function(sim) {
       sppMatchTable <- CBMutils::sppMatch(
         sim[[gcMetaTable]]$species,
         sppEquivalencies = sppEquiv,
-        return     = c("CBM_speciesID", "Broadleaf", "CanfiCode", "NFI"),
+        return     = c("CBM_speciesID", "Broadleaf", "CanfiCode", "NFI", "LandR"),
         otherNames = list(
           "White birch" = "Paper birch"
         ))[, .(
           species_id    = CBM_speciesID,
           sw_hw         = data.table::fifelse(Broadleaf, "hw", "sw"),
           canfi_species = CanfiCode,
-          genus         = sapply(strsplit(NFI, "_"), `[[`, 1)
+          genus         = sapply(strsplit(NFI, "_"), `[[`, 1),
+          LandR
         )]
 
       sim[[gcMetaTable]] <- cbind(
