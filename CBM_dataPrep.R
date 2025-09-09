@@ -601,7 +601,8 @@ Init <- function(sim) {
             CBM_speciesID = 177,
             Broadleaf     = TRUE,
             CanfiCode     = 1211,
-            NFI           = "POPU_"
+            NFI           = "POPU_",
+            LandR         = "POPU_BAL"
           )), fill = TRUE)
       }
 
