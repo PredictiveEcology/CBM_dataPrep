@@ -51,7 +51,7 @@ This documentation is work in progress. Potential discrepancies and omissions ma
 This first short event serves to process disturbance events for each simulation year. Separating this processing from the `init` event enables dynamic linkages to disturbance models. However, in our example, disturbances are provided in the form of remotely-sensed disturbance rasters. 
 
 ### Disturbances
-There are 468 unique disturbance matrices identified in the defaults. Since root parameters and snag carbon transfer rates have hardwood and softwood specific rates, each disturbance has a hardwood and a softwood instance, which means we have 234 unique disturbances across Canada as defaults in this modelling system, one for hardwood and one for softwood. A user could add or modify the proportions transferred between pools to represent a disturbance (**NOTE THAT THIS WOULD HAVE TO HAPPEN IN THE CSVs, and even then would that work? Does libcbm point to those files? what if we change them? QUESTION FOR SCOTT, VINI and SUSAN**). 
+There are 468 unique disturbance matrices identified in the defaults. Since root parameters and snag carbon transfer rates have hardwood and softwood specific rates, each disturbance has a hardwood and a softwood instance, which means we have 234 unique disturbances across Canada as defaults in this modelling system, one for hardwood and one for softwood. A user could add or modify the proportions transferred between pools to represent a disturbance. 
 **Add a section on how one would modify the disturbance matrices**
 
 *Figure 1: Proportional carbon transfers between pools during a fire in Saskatchewan*
@@ -66,7 +66,7 @@ There are a series of helper functions in [CBMutils](https://github.com/Predicti
 Because growth curves can be identified by strata, multiple columns can be used to identify growth curves using the `curveID` object. In our example, only **gcids** is used.
 
 ### `init`
-This event performs the majority of the data processing steps in this module. The study area's various spatial data is also processed into a table format for use in the [CBM_core](https://github.com/PredictiveEcology/CBM_core.git) and [CBM_vol2biomass_SK](https://github.com/PredictiveEcology/CBM_vol2biomass_SK.git) modules. This event is run only once.
+This event performs the majority of the data processing steps in this module. The study area's various spatial data, read-in in the study area specific [CBM_dataPrep_SK](https://github.com/PredictiveEcology/CBM_dataPrep_SK.git) module, is also processed into a table format for use in the [CBM_core](https://github.com/PredictiveEcology/CBM_core.git) and [CBM_vol2biomass_SK](https://github.com/PredictiveEcology/CBM_vol2biomass_SK.git) modules. This event is run only once.
 
 ## Outputs
 
