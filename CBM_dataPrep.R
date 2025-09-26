@@ -174,19 +174,19 @@ defineModule(sim, list(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = "Growth curve metadata with additional species attributes.",
       columns = list(
-        species_id      = "CBM-CFS3 species ID",
-        sw_hw           = "'sw' or 'hw'",
-        canfi_species   = "CanFI species codes",
-        genus           = "NFI species genus"
+        species_id    = "CBM-CFS3 species ID",
+        sw_hw         = "'sw' or 'hw'",
+        canfi_species = "CanFI species codes",
+        genus         = "NFI species genus"
       )),
     createsOutput(
       objectName = "gcMeta", objectClass = "data.table",
       desc = "Growth curve metadata with additional species attributes.",
       columns = list(
-        species_id      = "CBM-CFS3 species ID",
-        sw_hw           = "'sw' or 'hw'",
-        canfi_species   = "CanFI species codes",
-        genus           = "NFI species genus"
+        species_id    = "CBM-CFS3 species ID",
+        sw_hw         = "'sw' or 'hw'",
+        canfi_species = "CanFI species codes",
+        genus         = "NFI species genus"
       )),
     createsOutput(
       objectName = "disturbanceEvents", objectClass = "data.table",
