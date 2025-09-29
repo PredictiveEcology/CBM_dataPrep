@@ -37,8 +37,11 @@ test_that("Module: vector inputs", {
 
       adminLocator   = "Nova Scotia",
       ecoLocator     = 7,
-      ageLocator     = 10, ageDataYear = 2025,
-      gcIndexLocator = "GC-1"
+      ageLocator     = 10,
+      ageDataYear    = 2025,
+      cohortLocators = list(
+        curveID = "GC-1"
+      )
     )
   )
 
@@ -66,7 +69,6 @@ test_that("Module: vector inputs", {
     expect_true(colName %in% names(simTest$standDT))
     expect_true(all(!is.na(simTest$standDT[[colName]])))
   }
-
   expect_identical(data.table::key(simTest$standDT), "pixelIndex")
 
   expect_equal(nrow(simTest$standDT), 10000)
@@ -84,18 +86,17 @@ test_that("Module: vector inputs", {
   expect_true(!is.null(simTest$cohortDT))
   expect_true(inherits(simTest$cohortDT, "data.table"))
 
-  for (colName in c("cohortID", "pixelIndex")){
+  for (colName in c("cohortID", "pixelIndex", "age", "curveID")){
     expect_true(colName %in% names(simTest$cohortDT))
     expect_true(all(!is.na(simTest$cohortDT[[colName]])))
   }
-
   expect_identical(data.table::key(simTest$cohortDT), "cohortID")
 
   expect_equal(nrow(simTest$cohortDT), 10000)
   expect_equal(simTest$cohortDT$cohortID,   1:10000)
   expect_equal(simTest$cohortDT$pixelIndex, 1:10000)
-  expect_in(simTest$cohortDT$age,  10)
-  expect_in(simTest$cohortDT$curveID, "GC-1")
+  expect_in(simTest$cohortDT$age,           10)
+  expect_in(simTest$cohortDT$curveID,       "GC-1")
 
 })
 
