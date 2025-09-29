@@ -4,7 +4,7 @@ if (!testthat::is_testing()) source(testthat::test_path("setup.R"))
 test_that("Module: masterRaster missing", {
 
   # Set up project
-  projectName <- "3-module-special_1-noMasterRaster"
+  projectName <- "masterRasterMissing"
   times       <- list(start = 2025, end = 2025)
 
   simInitInput <- SpaDEStestMuffleOutput(

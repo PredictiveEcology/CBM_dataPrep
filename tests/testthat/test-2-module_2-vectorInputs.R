@@ -6,7 +6,7 @@ test_that("Module: vector inputs", {
   ## Run simInit and spades ----
 
   # Set up project
-  projectName <- "3-module-special_2-vectorInputs"
+  projectName <- "vectorInputs"
   times       <- list(start = 2025, end = 2025)
 
   simInitInput <- SpaDEStestMuffleOutput(

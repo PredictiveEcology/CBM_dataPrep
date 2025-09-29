@@ -1,13 +1,13 @@
 
 if (!testthat::is_testing()) source(testthat::test_path("setup.R"))
 
-test_that("Module: RIA-small", {
+test_that("Module: SK", {
 
   ## Run simInit and spades ----
 
   # Set up project
-  projectName <- "2-module_2-RIA-small"
-  times       <- list(start = 2020, end = 2021)
+  projectName <- "SK-small"
+  times       <- list(start = 1998, end = 2000)
 
   simInitInput <- SpaDEStestMuffleOutput(
 
@@ -30,13 +30,10 @@ test_that("Module: RIA-small", {
       # Set study area
       masterRaster = terra::rast(
         crs        = "EPSG:3979",
-        extent     = c(xmin = -1653000, xmax = -1553000, ymin = 1180000, ymax = 1280000),
-        resolution = 250,
+        extent     = c(xmin = -687696, xmax = -681036, ymin = 711955, ymax = 716183),
+        resolution = 30,
         vals       = 1
-      ),
-
-      # Set disturbances
-      disturbanceSource = "NTEMS"
+      )
     )
   )
 
@@ -64,17 +61,16 @@ test_that("Module: RIA-small", {
     expect_true(colName %in% names(simTest$standDT))
     expect_true(all(!is.na(simTest$standDT[[colName]])))
   }
-
   expect_identical(data.table::key(simTest$standDT), "pixelIndex")
 
-  expect_equal(nrow(simTest$standDT), 160000)
-  expect_equal(simTest$standDT$pixelIndex, 1:160000)
-  expect_in(simTest$standDT$area,              250*250)
-  #expect_in(simTest$standDT$admin_name,        "British Columbia") # Column excluded from result
-  expect_in(simTest$standDT$admin_abbrev,      "BC")
-  expect_in(simTest$standDT$admin_boundary_id, 11)
-  expect_in(simTest$standDT$ecozone,           c(4, 9, 12, 14))
-  expect_in(simTest$standDT$spatial_unit_id,   c(38, 39, 40, 42))
+  expect_equal(nrow(simTest$standDT), 31302)
+  expect_equal(simTest$standDT$pixelIndex, 1:31302)
+  expect_in(simTest$standDT$area,              30 * 30)
+  #expect_in(simTest$standDT$admin_name,        "Saskatchewan") # Column excluded from result
+  expect_in(simTest$standDT$admin_abbrev,      "SK")
+  expect_in(simTest$standDT$admin_boundary_id, 9)
+  expect_in(simTest$standDT$ecozone,           9)
+  expect_in(simTest$standDT$spatial_unit_id,   28)
 
 
   ## Check output 'cohortDT' ----
@@ -89,38 +85,10 @@ test_that("Module: RIA-small", {
 
   expect_identical(data.table::key(simTest$cohortDT), "cohortID")
 
-  expect_equal(nrow(simTest$cohortDT), 160000)
-  expect_equal(simTest$cohortDT$pixelIndex, 1:160000)
+  expect_equal(nrow(simTest$cohortDT), 31302)
+  expect_equal(simTest$cohortDT$pixelIndex, 1:31302)
   expect_equal(simTest$cohortDT$cohortID, simTest$cohortDT$pixelIndex)
 
-
-  ## Check output 'disturbanceMeta' ----
-
-  expect_true(!is.null(simTest$disturbanceMeta))
-  expect_true(inherits(simTest$disturbanceMeta, "data.table"))
-
-  expect_equal(nrow(simTest$disturbanceMeta), 2)
-
-  # Check that disturbances have been matched correctly
-  expect_equal(simTest$disturbanceMeta$disturbance_type_id, c(1, 204))
-
-
-  ## Check output 'disturbanceEvents' ----
-
-  expect_true(!is.null(simTest$disturbanceEvents))
-  expect_true(inherits(simTest$disturbanceEvents, "data.table"))
-
-  for (colName in c("pixelIndex", "year", "eventID")){
-    expect_true(colName %in% names(simTest$disturbanceEvents))
-    expect_true(is.integer(simTest$disturbanceEvents[[colName]]))
-    expect_true(all(!is.na(simTest$disturbanceEvents[[colName]])))
-  }
-
-  distEventCount <- simTest$disturbanceEvents[, .(N = .N), by = c("eventID")]
-  expect_equal(distEventCount, rbind(
-    data.table(eventID = 1001, N = 2138),
-    data.table(eventID = 1002, N = 4681)
-  ), tolerance = 100, scale = 1)
 })
 
 
