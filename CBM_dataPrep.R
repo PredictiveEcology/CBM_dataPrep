@@ -210,25 +210,28 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
     init = {
 
-      # Prepare data
-      sim <- Init(sim)
+      # Prepare cohorts
+      sim <- ReadCohorts(sim)
 
-      # Read disturbances
+      # Prepare species data
+      sim <- MatchSpecies(sim)
+
+      # Prepare disturbances
+      sim <- MatchDisturbances(sim)
+
+      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbances", eventPriority = 8)
+
       if ("NTEMS" %in% sim$disturbanceSource){
         sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbancesNTEMS")
       }
-      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbances", eventPriority = 8)
-
     },
 
     readDisturbances = {
-
       sim <- ReadDisturbances(sim)
       sim <- scheduleEvent(sim, time(sim) + 1, "CBM_dataPrep", "readDisturbances", eventPriority = 8)
     },
 
     readDisturbancesNTEMS = {
-
       sim <- ReadDisturbancesNTEMS(sim)
     },
 
@@ -237,140 +240,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
   return(invisible(sim))
 }
 
-ReadDisturbancesNTEMS <- function(sim){
-
-  if (any(c(1001, 1002) %in% sim$disturbanceMeta$eventID)) stop(
-    "NTEMS disturbances reserve eventIDs 1001 and 1002")
-
-  newDist <- rbind(
-    data.table(
-      eventID             = 1001L,
-      disturbance_type_id = 1, # Wildfire
-      name                = "NTEMS CA Forest Fires 1985-2020",
-      url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip"
-    ),
-    data.table(
-      eventID             = 1002L,
-      disturbance_type_id = 204, # Clearcut harvesting without salvage
-      name                = "NTEMS CA Forest Harvest 1985-2020",
-      url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
-    )
-  )
-
-  sim$disturbanceMeta <- data.table::rbindlist(list(
-    sim$disturbanceMeta, newDist[, 1:3]), fill = TRUE)
-
-  newEvents <- lapply(1:nrow(newDist), function(i){
-
-    url <- newDist[i,]$url
-    sourceTIF <- reproducible::prepInputs(
-      url,
-      destinationPath = inputPath(sim),
-      filename1   = basename(url),
-      targetFile  = paste0(tools::file_path_sans_ext(basename(url)), ".tif"),
-      alsoExtract = "similar",
-      fun         = NA
-    ) |> Cache()
-
-    with(newDist[i,], message(
-      time(sim), ": ",
-      "Reading disturbances for eventID = ", eventID,
-      "; CBM type ID = ", disturbance_type_id,
-      "; name = ", shQuote(name)))
-
-    distValues <- CBMutils::extractToRast(sourceTIF, sim$masterRaster) |> Cache()
-
-    if (P(sim)$saveRasters){
-      outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(newDist[i,]$name, '.tif'))
-      message("Writing aligned raster to path: ", outPath)
-      tryCatch(
-        CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE),
-        error = function(e) warning(e$message, call. = FALSE))
-    }
-
-    data.table::data.table(
-      pixelIndex = 1:length(distValues),
-      year       = as.integer(distValues),
-      eventID    = newDist[i,]$eventID
-    ) |> subset(!is.na(year)) |> subset(year != 0)
-  })
-
-  sim$disturbanceEvents <- data.table::rbindlist(c(list(sim$disturbanceEvents), newEvents))
-
-  return(invisible(sim))
-}
-
-ReadDisturbances <- function(sim){
-
-  # Get disturbances for the year
-  distRasts <- lapply(sim$disturbanceRasters, function(d){
-    if (as.character(time(sim)) %in% names(d)) d[[as.character(time(sim))]]
-  })
-
-  # Retrieve disturbances from simList
-  for (i in which(!is.na(sim$disturbanceMeta$sourceObjectName))){
-
-    distRasts[[as.character(sim$disturbanceMeta[i,]$eventID)]] <- get(
-      sim$disturbanceMeta[i,]$sourceObjectName, envir = sim)
-  }
-
-  # Summarize year events into a table
-  distRasts <- distRasts[!sapply(distRasts, is.null)]
-  if (length(distRasts) == 0) return(invisible(sim))
-
-  if (is.null(names(distRasts)))    stop("disturbanceRasters list names must be disturbance event IDs")
-  if (any(is.na(names(distRasts)))) stop("disturbanceRasters list names contains NAs")
-  if (any(names(distRasts) == ""))  stop("disturbanceRasters list names contains empty strings")
-
-  eventIDs <- suppressWarnings(tryCatch(
-    as.integer(names(distRasts)),
-    error = function(e) stop("disturbanceRasters list names must be coercible to integer")))
-
-  newEvents <- lapply(1:length(distRasts), function(i){
-
-    distMeta <- if (!is.null(sim$disturbanceMeta)){
-      x <- as.list(subset(sim$disturbanceMeta, eventID == eventIDs[[i]]))
-      x[!sapply(x, is.na)]
-    }else list(eventID = eventIDs[[1]])
-
-    with(distMeta, message(
-      time(sim), ": ",
-      "Reading disturbances for eventID = ", eventID,
-      if (exists("disturbance_type_id")) paste("; CBM type ID =", disturbance_type_id),
-      if (exists("name"))                paste("; name =", shQuote(name))))
-
-    distValues <- CBMutils::extractToRast(distRasts[[i]], sim$masterRaster) |> Cache()
-
-    if (P(sim)$saveRasters){
-      outPath <- file.path(outputPath(sim), "CBM_dataPrep", sprintf(
-        "distEvents-%s_%s-%s.tif", eventIDs[[i]], time(sim), i))
-      message("Writing aligned raster to path: ", outPath)
-      tryCatch(
-        CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE),
-        error = function(e) warning(e$message, call. = FALSE))
-    }
-
-    if (length(na.omit(distMeta$sourceValue)) == 1){
-      eventIndex <- which(distValues %in% distMeta$sourceValue)
-    }else{
-      eventIndex <- which(!is.na(distValues))
-    }
-
-    data.table::data.table(
-      pixelIndex = eventIndex,
-      year       = as.integer(time(sim) + c(na.omit(distMeta$sourceDelay), 0)[[1]]),
-      eventID    = eventIDs[[i]]
-    )
-  })
-
-  sim$disturbanceEvents <- data.table::rbindlist(c(list(sim$disturbanceEvents), newEvents))
-
-  return(invisible(sim))
-}
-
-Init <- function(sim) {
-
-  ## Prepare sim$standDT and sim$cohortDT ----
+ReadCohorts <- function(sim){
 
   if (length(sim$cohortLocators) > 0){
     if (!is.list(sim$cohortLocators) || is.null(names(sim$cohortLocators))) stop(
@@ -582,8 +452,10 @@ Init <- function(sim) {
     data.table::setkey(sim$cohortDT, cohortID)
   }
 
+  return(invisible(sim))
+}
 
-  ## Prepare sim$userGcMeta and sim$gcMeta ----
+MatchSpecies <- function(sim){
 
   # Get species attributes
   for (gcMetaTable in intersect(c("gcMeta", "userGcMeta"), objects(sim))){
@@ -631,8 +503,10 @@ Init <- function(sim) {
     }
   }
 
+  return(invisible(sim))
+}
 
-  ## Prepare sim$disturbanceMeta ----
+MatchDisturbances <- function(sim){
 
   if (!is.null(sim$disturbanceMeta) && !"disturbance_type_id" %in% names(sim$disturbanceMeta)){
 
@@ -663,11 +537,138 @@ Init <- function(sim) {
     )
   }
 
+  return(invisible(sim))
+}
 
-  ## Return simList ----
+ReadDisturbances <- function(sim){
+
+  # Get disturbances for the year
+  distRasts <- lapply(sim$disturbanceRasters, function(d){
+    if (as.character(time(sim)) %in% names(d)) d[[as.character(time(sim))]]
+  })
+
+  # Retrieve disturbances from simList
+  for (i in which(!is.na(sim$disturbanceMeta$sourceObjectName))){
+
+    distRasts[[as.character(sim$disturbanceMeta[i,]$eventID)]] <- get(
+      sim$disturbanceMeta[i,]$sourceObjectName, envir = sim)
+  }
+
+  # Summarize year events into a table
+  distRasts <- distRasts[!sapply(distRasts, is.null)]
+  if (length(distRasts) == 0) return(invisible(sim))
+
+  if (is.null(names(distRasts)))    stop("disturbanceRasters list names must be disturbance event IDs")
+  if (any(is.na(names(distRasts)))) stop("disturbanceRasters list names contains NAs")
+  if (any(names(distRasts) == ""))  stop("disturbanceRasters list names contains empty strings")
+
+  eventIDs <- suppressWarnings(tryCatch(
+    as.integer(names(distRasts)),
+    error = function(e) stop("disturbanceRasters list names must be coercible to integer")))
+
+  newEvents <- lapply(1:length(distRasts), function(i){
+
+    distMeta <- if (!is.null(sim$disturbanceMeta)){
+      x <- as.list(subset(sim$disturbanceMeta, eventID == eventIDs[[i]]))
+      x[!sapply(x, is.na)]
+    }else list(eventID = eventIDs[[1]])
+
+    with(distMeta, message(
+      time(sim), ": ",
+      "Reading disturbances for eventID = ", eventID,
+      if (exists("disturbance_type_id")) paste("; CBM type ID =", disturbance_type_id),
+      if (exists("name"))                paste("; name =", shQuote(name))))
+
+    distValues <- CBMutils::extractToRast(distRasts[[i]], sim$masterRaster) |> Cache()
+
+    if (P(sim)$saveRasters){
+      outPath <- file.path(outputPath(sim), "CBM_dataPrep", sprintf(
+        "distEvents-%s_%s-%s.tif", eventIDs[[i]], time(sim), i))
+      message("Writing aligned raster to path: ", outPath)
+      tryCatch(
+        CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE),
+        error = function(e) warning(e$message, call. = FALSE))
+    }
+
+    if (length(na.omit(distMeta$sourceValue)) == 1){
+      eventIndex <- which(distValues %in% distMeta$sourceValue)
+    }else{
+      eventIndex <- which(!is.na(distValues))
+    }
+
+    data.table::data.table(
+      pixelIndex = eventIndex,
+      year       = as.integer(time(sim) + c(na.omit(distMeta$sourceDelay), 0)[[1]]),
+      eventID    = eventIDs[[i]]
+    )
+  })
+
+  sim$disturbanceEvents <- data.table::rbindlist(c(list(sim$disturbanceEvents), newEvents))
 
   return(invisible(sim))
+}
 
+ReadDisturbancesNTEMS <- function(sim){
+
+  if (any(c(1001, 1002) %in% sim$disturbanceMeta$eventID)) stop(
+    "NTEMS disturbances reserve eventIDs 1001 and 1002")
+
+  newDist <- rbind(
+    data.table(
+      eventID             = 1001L,
+      disturbance_type_id = 1, # Wildfire
+      name                = "NTEMS CA Forest Fires 1985-2020",
+      url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip"
+    ),
+    data.table(
+      eventID             = 1002L,
+      disturbance_type_id = 204, # Clearcut harvesting without salvage
+      name                = "NTEMS CA Forest Harvest 1985-2020",
+      url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
+    )
+  )
+
+  sim$disturbanceMeta <- data.table::rbindlist(list(
+    sim$disturbanceMeta, newDist[, 1:3]), fill = TRUE)
+
+  newEvents <- lapply(1:nrow(newDist), function(i){
+
+    url <- newDist[i,]$url
+    sourceTIF <- reproducible::prepInputs(
+      url,
+      destinationPath = inputPath(sim),
+      filename1   = basename(url),
+      targetFile  = paste0(tools::file_path_sans_ext(basename(url)), ".tif"),
+      alsoExtract = "similar",
+      fun         = NA
+    ) |> Cache()
+
+    with(newDist[i,], message(
+      time(sim), ": ",
+      "Reading disturbances for eventID = ", eventID,
+      "; CBM type ID = ", disturbance_type_id,
+      "; name = ", shQuote(name)))
+
+    distValues <- CBMutils::extractToRast(sourceTIF, sim$masterRaster) |> Cache()
+
+    if (P(sim)$saveRasters){
+      outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(newDist[i,]$name, '.tif'))
+      message("Writing aligned raster to path: ", outPath)
+      tryCatch(
+        CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE),
+        error = function(e) warning(e$message, call. = FALSE))
+    }
+
+    data.table::data.table(
+      pixelIndex = 1:length(distValues),
+      year       = as.integer(distValues),
+      eventID    = newDist[i,]$eventID
+    ) |> subset(!is.na(year)) |> subset(year != 0)
+  })
+
+  sim$disturbanceEvents <- data.table::rbindlist(c(list(sim$disturbanceEvents), newEvents))
+
+  return(invisible(sim))
 }
 
 .inputObjects <- function(sim){
