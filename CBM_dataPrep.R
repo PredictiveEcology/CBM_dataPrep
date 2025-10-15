@@ -492,7 +492,7 @@ MatchSpecies <- function(sim){
           species_id    = CBM_speciesID,
           sw_hw         = data.table::fifelse(Broadleaf, "hw", "sw"),
           canfi_species = CanfiCode,
-          genus         = sapply(strsplit(NFI, "_"), `[[`, 1),
+          genus         = sapply(strsplit(NFI, "_"), `[`, 1),
           LandR
         )]
 
