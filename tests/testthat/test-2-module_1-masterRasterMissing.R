@@ -3,23 +3,22 @@ if (!testthat::is_testing()) source(testthat::test_path("setup.R"))
 
 test_that("Module: masterRaster missing", {
 
-  # Set project path
-  projectPath <- file.path(spadesTestPaths$temp$projects, "3-module-special_1-noMasterRaster")
-  dir.create(projectPath)
-  withr::local_dir(projectPath)
-
   # Set up project
+  projectName <- "masterRasterMissing"
+  times       <- list(start = 2025, end = 2025)
+
   simInitInput <- SpaDEStestMuffleOutput(
 
     SpaDES.project::setupProject(
       modules = "CBM_dataPrep",
+      times   = times,
       paths   = list(
-        projectPath = projectPath,
+        projectPath = spadesTestPaths$projectPath,
         modulePath  = spadesTestPaths$modulePath,
         packagePath = spadesTestPaths$packagePath,
         inputPath   = spadesTestPaths$inputPath,
         cachePath   = spadesTestPaths$cachePath,
-        outputPath  = file.path(projectPath, "outputs")
+        outputPath  = file.path(spadesTestPaths$temp$outputs, projectName)
       )
     )
   )
