@@ -210,6 +210,9 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
     init = {
 
+      # Prepare master raster
+      sim <- ReadMasterRaster(sim)
+
       # Prepare cohorts
       sim <- ReadCohorts(sim)
 
@@ -240,6 +243,35 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
   return(invisible(sim))
 }
 
+ReadMasterRaster <- function(sim){
+
+  if (is.null(sim$masterRaster)) stop("masterRaster not found")
+
+  if (!inherits(sim$masterRaster, "SpatRaster")){
+    sim$masterRaster <- tryCatch(
+      terra::rast(sim$masterRaster),
+      error = function(e) stop(
+        "masterRaster could not be converted to SpatRaster: ", e$message,
+        call. = FALSE))
+  }
+
+  # Mask cells outside of admin boundary
+  if (!terra::global(sim$masterRaster, "anyNA")[1, 1] &&
+      is.character(sim$adminLocator) && length(sim$adminLocator) == 1){
+
+    adminBoundaries <- CBMutils::CBMsourcePrepInputs("StatCan-admin")$source
+    if (sim$adminLocator %in% adminBoundaries$admin){
+
+      adminMask <- subset(adminBoundaries, admin == sim$adminLocator) |>
+        sf::st_segmentize(10000) |>
+        sf::st_transform(sf::st_crs(sim$masterRaster))
+      sim$masterRaster <- terra::mask(sim$masterRaster, adminMask, touches = FALSE)
+    }
+  }
+
+  return(invisible(sim))
+}
+
 ReadCohorts <- function(sim){
 
   if (length(sim$cohortLocators) > 0){
@@ -260,16 +292,6 @@ ReadCohorts <- function(sim){
     sim$cohortLocators
   )
   colInputs <- colInputs[!sapply(colInputs, is.null)]
-
-  # Read master raster
-  if (is.null(sim$masterRaster)) stop("masterRaster not found")
-  if (!inherits(sim$masterRaster, "SpatRaster")){
-    sim$masterRaster <- tryCatch(
-      terra::rast(sim$masterRaster),
-      error = function(e) stop(
-        "masterRaster could not be converted to SpatRaster: ", e$message,
-        call. = FALSE))
-  }
 
   # Initiate table
   allPixDT <- data.table::data.table(
