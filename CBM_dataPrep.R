@@ -258,8 +258,8 @@ ReadMasterRaster <- function(sim){
   }
 
   # Mask cells outside of admin boundary
-  if (!terra::global(sim$masterRaster, "anyNA")[1, 1] &&
-      is.character(sim$adminLocator) && length(sim$adminLocator) == 1){
+  if (is.character(sim$adminLocator) && length(sim$adminLocator) == 1 &&
+      !terra::global(sim$masterRaster, "anyNA")[1, 1]){
 
     adminBoundaries <- CBMutils::CBMsourcePrepInputs("StatCan-admin")$source
     if (sim$adminLocator %in% adminBoundaries$admin){
