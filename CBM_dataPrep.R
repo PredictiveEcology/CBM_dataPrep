@@ -176,6 +176,7 @@ defineModule(sim, list(
       columns = list(
         species_id    = "CBM-CFS3 species ID",
         sw_hw         = "'sw' or 'hw'",
+        LandR         = "LandR species code",
         canfi_species = "CanFI species codes",
         genus         = "NFI species genus"
       )),
@@ -185,6 +186,7 @@ defineModule(sim, list(
       columns = list(
         species_id    = "CBM-CFS3 species ID",
         sw_hw         = "'sw' or 'hw'",
+        LandR         = "LandR species code",
         canfi_species = "CanFI species codes",
         genus         = "NFI species genus"
       )),
@@ -328,6 +330,8 @@ ReadCohorts <- function(sim){
           CBMutils::writeRasterWithValues(sim$masterRaster, allPixDT[[colName]], outPath, overwrite = TRUE),
           error = function(e) warning(e$message, call. = FALSE))
       }
+
+      if (is.factor(allPixDT[[colName]])) allPixDT[[colName]] <- as.character(allPixDT[[colName]])
     }
   }
 
@@ -479,26 +483,26 @@ ReadCohorts <- function(sim){
 
 MatchSpecies <- function(sim){
 
+  ## TEMPORARY: Add species missing from LandR::sppEquivalencies_CA
+  sppEquiv <- LandR::sppEquivalencies_CA
+  if (!177 %in% sppEquiv$CBM_speciesID){
+    sppEquiv <- data.table::rbindlist(list(
+      sppEquiv, data.frame(
+        EN_generic_full = "Balsam poplar, largetooth aspen and eastern cottonwood",
+        CBM_speciesID = 177,
+        Broadleaf     = TRUE,
+        CanfiCode     = 1211,
+        NFI           = "POPU_",
+        LandR         = "POPU_BAL"
+      )), fill = TRUE)
+  }
+
   # Get species attributes
   for (gcMetaTable in intersect(c("gcMeta", "userGcMeta"), objects(sim))){
     if (any(!c("species_id", "sw_hw", "canfi_species", "genus") %in% names(sim[[gcMetaTable]]))){
 
       if (!"species" %in% names(sim[[gcMetaTable]])) stop(
         gcMetaTable, " requires the 'species' names column to retrieve species data with CBMutils::sppMatch")
-
-      ## TEMPORARY: Add species missing from LandR::sppEquivalencies_CA
-      sppEquiv <- LandR::sppEquivalencies_CA
-      if (!177 %in% sppEquiv$CBM_speciesID){
-        sppEquiv <- data.table::rbindlist(list(
-          sppEquiv, data.frame(
-            EN_generic_full = "Balsam poplar, largetooth aspen and eastern cottonwood",
-            CBM_speciesID = 177,
-            Broadleaf     = TRUE,
-            CanfiCode     = 1211,
-            NFI           = "POPU_",
-            LandR         = "POPU_BAL"
-          )), fill = TRUE)
-      }
 
       if (!data.table::is.data.table(sim[[gcMetaTable]])){
         sim[[gcMetaTable]] <- data.table::as.data.table(sim[[gcMetaTable]])
