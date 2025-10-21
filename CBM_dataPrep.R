@@ -23,7 +23,7 @@ defineModule(sim, list(
   ),
   parameters = rbind(
     defineParameter("saveRasters", "logical", FALSE, NA, NA, "Save rasters of inputs aligned to the `masterRaster`"),
-    defineParameter(".useCache", "character", c(".inputObjects", "Init"), NA, NA, "Cache module events")
+    defineParameter(".useCache", "character", c(".inputObjects", "init"), NA, NA, "Cache module events")
   ),
   inputObjects = bindrows(
     expectsInput(
