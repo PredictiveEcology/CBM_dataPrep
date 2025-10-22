@@ -165,11 +165,7 @@ defineModule(sim, list(
       )),
     createsOutput(
       objectName = "userGcSPU", objectClass = "data.table",
-      desc = "Table of growth curves and spatial unit combinations in the cohorts.",
-      columns = list(
-        curveID         = "Growth curve ID",
-        spatial_unit_id = "CBM-CFS3 spatial unit ID"
-      )),
+      desc = "Table of growth curve and spatial unit combinations `cohortDT`."),
     createsOutput(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = "Growth curve metadata with additional species attributes.",
