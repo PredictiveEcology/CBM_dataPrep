@@ -91,7 +91,7 @@ defineModule(sim, list(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = paste(
         "Growth curve metadata. An input to CBM_vol2biomass.",
-        "If provided, species names will be matched with known species get additional attributes."),
+        "If provided, species names will be matched with known species get additional attributes.")),
     expectsInput(
       objectName = "gcMeta", objectClass = "data.table",
       desc = paste(
@@ -690,25 +690,16 @@ ReadDisturbancesNTEMS <- function(sim){
 
   # CBM-CFS3 defaults database
   if (!suppliedElsewhere("dbPath", sim)){
-    if (suppliedElsewhere("dbPathURL", sim)){
 
-      sim$dbPath <- prepInputs(
-        destinationPath = inputPath(sim),
-        url = sim$dbPathURL
-      )
+    sim$dbPath <- file.path(inputPath(sim), "cbm_defaults_v1.2.8340.362.db")
 
-    }else{
-
-      sim$dbPath <- file.path(inputPath(sim), "cbm_defaults_v1.2.8340.362.db")
-
-      if (!file.exists(sim$dbPath)) prepInputs(
-        destinationPath = inputPath(sim),
-        url         = extractURL("dbPath"),
-        targetFile  = basename(sim$dbPath),
-        dlFun       = download.file(extractURL("dbPath"), sim$dbPath, mode = "wb", quiet = TRUE),
-        fun         = NA
-      )
-    }
+    if (!file.exists(sim$dbPath)) prepInputs(
+      destinationPath = inputPath(sim),
+      url         = extractURL("dbPath"),
+      targetFile  = basename(sim$dbPath),
+      dlFun       = download.file(extractURL("dbPath"), sim$dbPath, mode = "wb", quiet = TRUE),
+      fun         = NA
+    )
   }
 
 
