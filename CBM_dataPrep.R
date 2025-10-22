@@ -187,14 +187,11 @@ defineModule(sim, list(
         genus         = "NFI species genus"
       )),
     createsOutput(
-      objectName = "disturbanceEvents", objectClass = "data.table",
-      desc = paste(
-        "Table with disturbance events for each simulation year.",
-        "Input `disturbanceRasters` are aligned with the `masterRaster`",
-        "and the events are summarized into this table.")),
-    createsOutput(
       objectName = "disturbanceMeta", objectClass = "data.table",
-      desc = "Table defining the disturbance event types.")
+      desc = "Table defining `disturbanceEvents` event types."),
+    createsOutput(
+      objectName = "disturbanceEvents", objectClass = "data.table",
+      desc = "Table of disturbance events.")
   )
 ))
 
