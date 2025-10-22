@@ -27,61 +27,53 @@ defineModule(sim, list(
   ),
   inputObjects = bindrows(
     expectsInput(
-      objectName = "masterRaster", objectClass = "SpatRaster",
-      desc = "Raster template defining the study area. NA cells will be excluded from analysis."),
-    expectsInput(
-      objectName = "masterRasterURL", objectClass = "character", desc = "URL for `masterRaster`"),
-    expectsInput(
-      objectName = "ecoLocator", objectClass = "sf|SpatRaster|numeric",
-      sourceURL = "http://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip",
+      objectName = "masterRaster", objectClass = "SpatRaster|character",
       desc = paste(
-        "Spatial data source of Canada ecozone IDs",
-        "or a single value to use for all cohorts.",
-        "Default is Canada's ecozones as polygon features.")),
+        "Raster template defining the study area. NA cells will be excluded from analysis.",
+        "This can be provided as a SpatRaster or URL.")),
     expectsInput(
-      objectName = "ecoLocatorURL", objectClass = "character", desc = "URL for `ecoLocator`"),
-    expectsInput(
-      objectName = "adminLocator", objectClass = "sf|SpatRaster|character",
-      sourceURL = "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000a21a_e.zip",
+      objectName  = "adminLocator",
+      objectClass = "sf|SpatRaster|character",
+      sourceURL  = "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000a21a_e.zip",
       desc = paste(
-        "Spatial data source of Canada's administrative boundary names",
-        "or a single value to use for all cohorts.",
-        "Default is Canada's provinces and territories as polygon features.")),
+        "Canada administrative boundary name(s).",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
-      objectName = "adminLocatorURL", objectClass = "character", desc = "URL for `adminLocator`"),
+      objectName  = "ecoLocator",
+      objectClass = "sf|SpatRaster|character|numeric",
+      sourceURL   = "http://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip",
+      desc = paste(
+        "Canada ecozone ID(s).",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "ageLocator", objectClass = "sf|SpatRaster|numeric",
-      desc = "Spatial data source of cohort ages or a single value to use for all cohorts."),
+      desc = paste(
+        "Cohort ages at the simulation start year.",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
-      objectName = "ageLocatorURL", objectClass = "character", desc = "URL for `ageLocator`"),
+      objectName  = "ageLocator",
+      objectClass = "sf|SpatRaster|character|numeric",
+      desc = paste(
+        "Cohort ages at the simulation start year.",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "ageDataYear", objectClass = "numeric",
-      desc = paste(
-        "Year that the ages in `ageLocator` represent.",
-        "If omitted, ages are assumed to represent the simulation start year.")),
+      desc = "Year that the ages in `ageLocator` represent. If omitted, ages are assumed to represent the simulation start year."),
     expectsInput(
       objectName = "ageSpinupMin", objectClass = "numeric",
-      desc = paste(
-        "Minimum age for cohorts during spinup.",
-        "Temporary fix to CBM_core issue: https://github.com/PredictiveEcology/CBM_core/issues/1")),
+      desc = "Minimum age for cohorts during spinup. Temporary fix to CBM_core issue #1: https://github.com/PredictiveEcology/CBM_core/issues/1"),
     expectsInput(
       objectName = "gcIndexLocator", objectClass = "sf|SpatRaster|character",
       desc = paste(
-        "Spatial data source of growth curve ID locations",
-        "or a single value to use for all cohorts.",
+        "Growth curve ID(s).",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.",
         "If provided, IDs will be added to the 'curveID' column of `cohortDT` and `curveID` will be set to 'curveID'")),
     expectsInput(
-      objectName = "gcIndexLocatorURL", objectClass = "character", desc = "URL for `gcIndexLocator`"),
-    expectsInput(
-      objectName = "cohortLocators", objectClass = "list",
+      objectName  = "cohortLocators",
+      objectClass = "list",
       desc = paste(
-        "List of values or spatial data sources for additional columns in `cohortDT`.",
-        "Each item may be a terra SpatRaster object,",
-        "a character vector of multiple raster tiles,",
-        "an sf polygons object,",
-        "or a single value to use for all cohorts.")),
-    expectsInput(
-      objectName = "cohortLocatorURLs", objectClass = "list", desc = "URLs for `cohortLocators`"),
+        "Named list of data sources defining cohorts.",
+        "Each item may be a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "curveID", objectClass = "character",
       desc = paste(
@@ -128,8 +120,6 @@ defineModule(sim, list(
         sourceDelay         = "Optional. Delay (in years) of when the `disturbanceRasters` will take effect",
         sourceObjectName    = "Optional. Name of the object in the `simList` to retrieve the `disturbanceRasters` from annually."
       )),
-    expectsInput(
-      objectName = "disturbanceMetaURL", objectClass = "character", desc = "URL for `disturbanceMeta`"),
     expectsInput(
       objectName = "dbPath", objectClass = "character",
       sourceURL = "https://raw.githubusercontent.com/cat-cfs/libcbm_py/main/libcbm/resources/cbm_defaults_db/cbm_defaults_v1.2.8340.362.db",
@@ -237,11 +227,21 @@ ReadMasterRaster <- function(sim){
   if (is.null(sim$masterRaster)) stop("masterRaster not found")
 
   if (!inherits(sim$masterRaster, "SpatRaster")){
-    sim$masterRaster <- tryCatch(
-      terra::rast(sim$masterRaster),
-      error = function(e) stop(
-        "masterRaster could not be converted to SpatRaster: ", e$message,
-        call. = FALSE))
+
+    if (isURL(sim$masterRaster)){
+      sim$masterRaster <- reproducible::prepInputs(
+        destinationPath = inputPath(sim),
+        url = sim$masterRaster,
+        fun = terra::rast
+      )
+
+    }else{
+      sim$masterRaster <- tryCatch(
+        terra::rast(sim$masterRaster),
+        error = function(e) stop(
+          "masterRaster could not be converted to SpatRaster: ", e$message,
+          call. = FALSE))
+    }
   }
 
   # Mask cells outside of admin boundary
@@ -263,26 +263,7 @@ ReadMasterRaster <- function(sim){
 
 ReadCohorts <- function(sim){
 
-  if (length(sim$cohortLocators) > 0){
-    if (!is.list(sim$cohortLocators) || is.null(names(sim$cohortLocators))) stop(
-      "'cohortLocators' must be a named list")
-    if (any(is.na(names(sim$cohortLocators)))) stop("'cohortLocators' names contains NAs")
-    sim$cohortLocators <- sim$cohortLocators[!sapply(sim$cohortLocators, is.null)]
-  }
-
-  # Set which columns come from which input object
-  colInputs <- c(
-    list(
-      admin_name = sim$adminLocator,
-      ecozone    = sim$ecoLocator,
-      age        = sim$ageLocator,
-      curveID    = sim$gcIndexLocator
-    ),
-    sim$cohortLocators
-  )
-  colInputs <- colInputs[!sapply(colInputs, is.null)]
-
-  # Initiate table
+  # Initiate pixel table
   allPixDT <- data.table::data.table(
     pixelIndex = 1:terra::ncell(sim$masterRaster),
     key = "pixelIndex")
@@ -297,10 +278,28 @@ ReadCohorts <- function(sim){
     allPixDT$area <- terra::values(masterRasterCellSize, mat = FALSE) |> Cache()
   }
 
+  # Set cohort attributes from input sources
+  if (length(sim$cohortLocators) > 0){
+    if (!is.list(sim$cohortLocators) || is.null(names(sim$cohortLocators))) stop(
+      "'cohortLocators' must be a named list")
+    if (any(is.na(names(sim$cohortLocators)))) stop("'cohortLocators' names contains NAs")
+    sim$cohortLocators <- sim$cohortLocators[!sapply(sim$cohortLocators, is.null)]
+  }
+
+  colInputs <- c(
+    list(
+      admin_name = sim$adminLocator,
+      ecozone    = sim$ecoLocator,
+      age        = sim$ageLocator,
+      curveID    = sim$gcIndexLocator
+    ),
+    sim$cohortLocators
+  )
+  colInputs <- colInputs[!sapply(colInputs, is.null)]
+
   for (colName in names(colInputs)){
 
-    if (is.vector(colInputs[[colName]]) && length(colInputs[[colName]]) == 1 &&
-        tryCatch(!file.exists(colInputs[[colName]]), error = function(e) TRUE)){
+    if (isValue(colInputs[[colName]])){
 
       # Set column as a single value
       allPixDT[[colName]] <- colInputs[[colName]]
@@ -308,6 +307,13 @@ ReadCohorts <- function(sim){
     }else{
 
       message("Extracting spatial input data into column '", colName, "'")
+
+      if (isURL(allPixDT[[colName]])){
+        allPixDT[[colName]] <- reproducible::prepInputs(
+          destinationPath = inputPath(sim),
+          url             = allPixDT[[colName]])
+      }
+
       allPixDT[[colName]] <- CBMutils::extractToRast(colInputs[[colName]], sim$masterRaster) |> Cache()
 
       if (P(sim)$saveRasters){
@@ -521,6 +527,14 @@ MatchSpecies <- function(sim){
 
 MatchDisturbances <- function(sim){
 
+  if (isURL(sim$disturbanceMeta)){
+    sim$disturbanceMeta <- prepInputs(
+      destinationPath = inputPath(sim),
+      url = sim$disturbanceMeta,
+      fun = data.table::fread
+    )
+  }
+
   if (!is.null(sim$disturbanceMeta) && !"disturbance_type_id" %in% names(sim$disturbanceMeta)){
 
     if (is.null(sim$dbPath)) stop("'dbPath' input required to set disturbanceMeta 'disturbance_type_id'")
@@ -705,104 +719,65 @@ ReadDisturbancesNTEMS <- function(sim){
 
   ## Define stands and cohorts ----
 
-  # Master raster
-  if (!suppliedElsewhere("masterRaster", sim) & suppliedElsewhere("masterRasterURL", sim)){
-
-    sim$masterRaster <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$masterRasterURL
-    )
-  }
-
   # Canada admin boundaries
   if (!suppliedElsewhere("adminLocator", sim)){
 
-    if (suppliedElsewhere("adminLocatorURL", sim) &
-        !identical(sim$adminLocatorURL, extractURL("adminLocator"))){
+    sim$adminLocator <- prepInputs(
+      destinationPath = inputPath(sim),
+      url         = extractURL("adminLocator"),
+      filename1   = "lpr_000a21a_e.zip",
+      targetFile  = "lpr_000a21a_e.shp",
+      alsoExtract = "similar",
+      fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
+    )
 
-      sim$adminLocator <- prepInputs(
-        destinationPath = inputPath(sim),
-        url = sim$adminLocatorURL
-      )
+    # Split Newfoundland and Labrador
+    sim$adminLocator <- cbind(name = sim$adminLocator$PRENAME, sim$adminLocator)
 
-    }else{
+    adminSplit <- terra::split(
+      terra::vect(sim$adminLocator),
+      terra::vect(sf::st_sfc(sf::st_linestring(rbind(c(8476500, 2297500), c(8565300, 2451300))),
+                             crs = sf::st_crs(sim$adminLocator))))
+    adminSplit <- sf::st_as_sf(adminSplit, agr = "constant")
+    sf::st_agr(adminSplit) <- "constant"
 
-      sim$adminLocator <- prepInputs(
-        destinationPath = inputPath(sim),
-        url         = extractURL("adminLocator"),
-        filename1   = "lpr_000a21a_e.zip",
-        targetFile  = "lpr_000a21a_e.shp",
-        alsoExtract = "similar",
-        fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
-      )
+    nl_cd <- sf::st_coordinates(sf::st_centroid(sf::st_geometry(
+      adminSplit[adminSplit$name == "Newfoundland and Labrador",])))
+    adminSplit[adminSplit$name == "Newfoundland and Labrador", "name"] <- sapply(
+      nl_cd[, "X"] == min(nl_cd[, "X"]), ifelse, "Labrador", "Newfoundland")
 
-      # Split Newfoundland and Labrador
-      sim$adminLocator <- cbind(name = sim$adminLocator$PRENAME, sim$adminLocator)
-
-      adminSplit <- terra::split(
-        terra::vect(sim$adminLocator),
-        terra::vect(sf::st_sfc(sf::st_linestring(rbind(c(8476500, 2297500), c(8565300, 2451300))),
-                               crs = sf::st_crs(sim$adminLocator))))
-      adminSplit <- sf::st_as_sf(adminSplit, agr = "constant")
-      sf::st_agr(adminSplit) <- "constant"
-
-      nl_cd <- sf::st_coordinates(sf::st_centroid(sf::st_geometry(
-        adminSplit[adminSplit$name == "Newfoundland and Labrador",])))
-      adminSplit[adminSplit$name == "Newfoundland and Labrador", "name"] <- sapply(
-        nl_cd[, "X"] == min(nl_cd[, "X"]), ifelse, "Labrador", "Newfoundland")
-
-      sim$adminLocator <- adminSplit
-    }
+    sim$adminLocator <- adminSplit
   }
 
   # Canada ecozones
   if (!suppliedElsewhere("ecoLocator", sim)){
 
-    if (suppliedElsewhere("ecoLocatorURL", sim) &
-        !identical(sim$ecoLocatorURL, extractURL("ecoLocator"))){
+    ## 2024-12-04 NOTE:
+    ## Multiple users had issues downloading and extracting this file via prepInputs.
+    ## Downloading the ZIP directly and saving it in the inputs directory works OK.
+    sim$ecoLocator <- tryCatch(
 
-      sim$ecoLocator <- prepInputs(
+      prepInputs(
         destinationPath = inputPath(sim),
-        url = sim$ecoLocatorURL
-      )
+        url         = extractURL("ecoLocator"),
+        filename1   = "ecozone_shp.zip",
+        targetFile  = "ecozones.shp",
+        alsoExtract = "similar",
+        fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
+      ),
 
-    }else{
+      error = function(e) stop(
+        "Canada ecozones Shapefile failed be downloaded and extracted:\n", e$message, "\n\n",
+        "If this error persists, download the ZIP file directly and save it to the inputs directory.",
+        "\nDownload URL: ", extractURL("ecoLocator"),
+        "\nInputs directory: ", normalizePath(inputPath(sim), winslash = "/"),
+        call. = FALSE))
 
-      ## 2024-12-04 NOTE:
-      ## Multiple users had issues downloading and extracting this file via prepInputs.
-      ## Downloading the ZIP directly and saving it in the inputs directory works OK.
-      sim$ecoLocator <- tryCatch(
-
-        prepInputs(
-          destinationPath = inputPath(sim),
-          url         = extractURL("ecoLocator"),
-          filename1   = "ecozone_shp.zip",
-          targetFile  = "ecozones.shp",
-          alsoExtract = "similar",
-          fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
-        ),
-
-        error = function(e) stop(
-          "Canada ecozones Shapefile failed be downloaded and extracted:\n", e$message, "\n\n",
-          "If this error persists, download the ZIP file directly and save it to the inputs directory.",
-          "\nDownload URL: ", extractURL("ecoLocator"),
-          "\nInputs directory: ", normalizePath(inputPath(sim), winslash = "/"),
-          call. = FALSE))
-
-      # Drop other fields
-      sim$ecoLocator <- sim$ecoLocator[, "ECOZONE"]
-    }
+    # Drop other fields
+    sim$ecoLocator <- sim$ecoLocator[, "ECOZONE"]
   }
 
   # Cohort ages
-  if (!suppliedElsewhere("ageLocator", sim) & suppliedElsewhere("ageLocatorURL", sim)){
-
-    sim$ageLocator <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$ageLocatorURL
-    )
-  }
-
   if (!suppliedElsewhere("ageDataYear", sim) & !is.null(sim$ageLocator)){
 
     warning("'ageDataYear' not provided by user; `ageLocator` ages assumed to represent cohort age at simulation start")
@@ -810,41 +785,8 @@ ReadDisturbancesNTEMS <- function(sim){
     sim$ageDataYear <- as.numeric(start(sim))
   }
 
-  # Growth curve locations
-  if (!suppliedElsewhere("gcIndexLocator", sim) & suppliedElsewhere("gcIndexLocatorURL", sim)){
-
-    sim$gcIndexLocator <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$gcIndexLocatorURL
-    )
-  }
-
-  # Other cohort data
-  if (!suppliedElsewhere("cohortLocators", sim) & suppliedElsewhere("cohortLocatorURLs", sim)){
-
-    sim$cohortLocators <- lapply(sim$cohortLocatorURLs, function(url){
-      prepInputs(
-        destinationPath = inputPath(sim),
-        url = url
-      )
-    })
-  }
-
-
-  ## Disturbances ----
-
-  if (!suppliedElsewhere("disturbanceMeta") & suppliedElsewhere("disturbanceMetaURL", sim)){
-
-    sim$disturbanceMeta <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$disturbanceMetaURL,
-      fun = data.table::fread
-    )
-  }
-
 
   ## Return simList ----
 
   return(invisible(sim))
 }
-
