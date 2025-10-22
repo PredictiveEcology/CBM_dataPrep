@@ -69,15 +69,11 @@ defineModule(sim, list(
     expectsInput(
       objectName = "gcIndexLocatorURL", objectClass = "character", desc = "URL for `gcIndexLocator`"),
     expectsInput(
-      objectName = "cohortLocators", objectClass = "list",
+      objectName  = "cohortLocators",
+      objectClass = "list",
       desc = paste(
-        "List of values or spatial data sources for additional columns in `cohortDT`.",
-        "Each item may be a terra SpatRaster object,",
-        "a character vector of multiple raster tiles,",
-        "an sf polygons object,",
-        "or a single value to use for all cohorts.")),
-    expectsInput(
-      objectName = "cohortLocatorURLs", objectClass = "list", desc = "URLs for `cohortLocators`"),
+        "Named list of data sources defining cohorts.",
+        "Each item may be a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "curveID", objectClass = "character",
       desc = paste(
@@ -812,17 +808,6 @@ ReadDisturbancesNTEMS <- function(sim){
       destinationPath = inputPath(sim),
       url = sim$gcIndexLocatorURL
     )
-  }
-
-  # Other cohort data
-  if (!suppliedElsewhere("cohortLocators", sim) & suppliedElsewhere("cohortLocatorURLs", sim)){
-
-    sim$cohortLocators <- lapply(sim$cohortLocatorURLs, function(url){
-      prepInputs(
-        destinationPath = inputPath(sim),
-        url = url
-      )
-    })
   }
 
 
