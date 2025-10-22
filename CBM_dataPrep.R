@@ -127,8 +127,6 @@ defineModule(sim, list(
         sourceObjectName    = "Optional. Name of the object in the `simList` to retrieve the `disturbanceRasters` from annually."
       )),
     expectsInput(
-      objectName = "disturbanceMetaURL", objectClass = "character", desc = "URL for `disturbanceMeta`"),
-    expectsInput(
       objectName = "dbPath", objectClass = "character",
       sourceURL = "https://raw.githubusercontent.com/cat-cfs/libcbm_py/main/libcbm/resources/cbm_defaults_db/cbm_defaults_v1.2.8340.362.db",
       desc = "Path to the CBM-CBM3 defaults database")
@@ -542,6 +540,14 @@ MatchSpecies <- function(sim){
 
 MatchDisturbances <- function(sim){
 
+  if (isURL(sim$disturbanceMeta)){
+    sim$disturbanceMeta <- prepInputs(
+      destinationPath = inputPath(sim),
+      url = sim$disturbanceMeta,
+      fun = data.table::fread
+    )
+  }
+
   if (!is.null(sim$disturbanceMeta) && !"disturbance_type_id" %in% names(sim$disturbanceMeta)){
 
     if (is.null(sim$dbPath)) stop("'dbPath' input required to set disturbanceMeta 'disturbance_type_id'")
@@ -807,18 +813,6 @@ ReadDisturbancesNTEMS <- function(sim){
     sim$gcIndexLocator <- prepInputs(
       destinationPath = inputPath(sim),
       url = sim$gcIndexLocatorURL
-    )
-  }
-
-
-  ## Disturbances ----
-
-  if (!suppliedElsewhere("disturbanceMeta") & suppliedElsewhere("disturbanceMetaURL", sim)){
-
-    sim$disturbanceMeta <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$disturbanceMetaURL,
-      fun = data.table::fread
     )
   }
 
