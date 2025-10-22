@@ -329,9 +329,7 @@ ReadCohorts <- function(sim){
   }
 
   # Subset table to cells where masterRaster is not NA
-  allPixDT <- allPixDT[!is.na(
-    terra::values(sim$masterRaster, mat = FALSE) |> Cache()
-  ),]
+  allPixDT <- allPixDT[terra::cells(sim$masterRaster),]
   if (nrow(allPixDT) == 0) stop("all masterRaster values are NA")
 
   # Remove pixels that are missing key attributes
