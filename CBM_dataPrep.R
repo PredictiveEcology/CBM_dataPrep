@@ -32,23 +32,19 @@ defineModule(sim, list(
         "Raster template defining the study area. NA cells will be excluded from analysis.",
         "This can be provided as a SpatRaster or URL.")),
     expectsInput(
-      objectName = "ecoLocator", objectClass = "sf|SpatRaster|numeric",
-      sourceURL = "http://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip",
+      objectName  = "adminLocator",
+      objectClass = "sf|SpatRaster|character",
+      sourceURL  = "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000a21a_e.zip",
       desc = paste(
-        "Spatial data source of Canada ecozone IDs",
-        "or a single value to use for all cohorts.",
-        "Default is Canada's ecozones as polygon features.")),
+        "Canada administrative boundary name(s).",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
-      objectName = "ecoLocatorURL", objectClass = "character", desc = "URL for `ecoLocator`"),
-    expectsInput(
-      objectName = "adminLocator", objectClass = "sf|SpatRaster|character",
-      sourceURL = "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000a21a_e.zip",
+      objectName  = "ecoLocator",
+      objectClass = "sf|SpatRaster|character|numeric",
+      sourceURL   = "http://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip",
       desc = paste(
-        "Spatial data source of Canada's administrative boundary names",
-        "or a single value to use for all cohorts.",
-        "Default is Canada's provinces and territories as polygon features.")),
-    expectsInput(
-      objectName = "adminLocatorURL", objectClass = "character", desc = "URL for `adminLocator`"),
+        "Canada ecozone ID(s).",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "ageLocator", objectClass = "sf|SpatRaster|numeric",
       desc = "Spatial data source of cohort ages or a single value to use for all cohorts."),
@@ -286,26 +282,7 @@ ReadMasterRaster <- function(sim){
 
 ReadCohorts <- function(sim){
 
-  if (length(sim$cohortLocators) > 0){
-    if (!is.list(sim$cohortLocators) || is.null(names(sim$cohortLocators))) stop(
-      "'cohortLocators' must be a named list")
-    if (any(is.na(names(sim$cohortLocators)))) stop("'cohortLocators' names contains NAs")
-    sim$cohortLocators <- sim$cohortLocators[!sapply(sim$cohortLocators, is.null)]
-  }
-
-  # Set which columns come from which input object
-  colInputs <- c(
-    list(
-      admin_name = sim$adminLocator,
-      ecozone    = sim$ecoLocator,
-      age        = sim$ageLocator,
-      curveID    = sim$gcIndexLocator
-    ),
-    sim$cohortLocators
-  )
-  colInputs <- colInputs[!sapply(colInputs, is.null)]
-
-  # Initiate table
+  # Initiate pixel table
   allPixDT <- data.table::data.table(
     pixelIndex = 1:terra::ncell(sim$masterRaster),
     key = "pixelIndex")
@@ -320,10 +297,28 @@ ReadCohorts <- function(sim){
     allPixDT$area <- terra::values(masterRasterCellSize, mat = FALSE) |> Cache()
   }
 
+  # Set cohort attributes from input sources
+  if (length(sim$cohortLocators) > 0){
+    if (!is.list(sim$cohortLocators) || is.null(names(sim$cohortLocators))) stop(
+      "'cohortLocators' must be a named list")
+    if (any(is.na(names(sim$cohortLocators)))) stop("'cohortLocators' names contains NAs")
+    sim$cohortLocators <- sim$cohortLocators[!sapply(sim$cohortLocators, is.null)]
+  }
+
+  colInputs <- c(
+    list(
+      admin_name = sim$adminLocator,
+      ecozone    = sim$ecoLocator,
+      age        = sim$ageLocator,
+      curveID    = sim$gcIndexLocator
+    ),
+    sim$cohortLocators
+  )
+  colInputs <- colInputs[!sapply(colInputs, is.null)]
+
   for (colName in names(colInputs)){
 
-    if (is.vector(colInputs[[colName]]) && length(colInputs[[colName]]) == 1 &&
-        tryCatch(!file.exists(colInputs[[colName]]), error = function(e) TRUE)){
+    if (isValue(colInputs[[colName]])){
 
       # Set column as a single value
       allPixDT[[colName]] <- colInputs[[colName]]
@@ -331,6 +326,13 @@ ReadCohorts <- function(sim){
     }else{
 
       message("Extracting spatial input data into column '", colName, "'")
+
+      if (isURL(allPixDT[[colName]])){
+        allPixDT[[colName]] <- reproducible::prepInputs(
+          destinationPath = inputPath(sim),
+          url             = allPixDT[[colName]])
+      }
+
       allPixDT[[colName]] <- CBMutils::extractToRast(colInputs[[colName]], sim$masterRaster) |> Cache()
 
       if (P(sim)$saveRasters){
@@ -740,81 +742,59 @@ ReadDisturbancesNTEMS <- function(sim){
   # Canada admin boundaries
   if (!suppliedElsewhere("adminLocator", sim)){
 
-    if (suppliedElsewhere("adminLocatorURL", sim) &
-        !identical(sim$adminLocatorURL, extractURL("adminLocator"))){
+    sim$adminLocator <- prepInputs(
+      destinationPath = inputPath(sim),
+      url         = extractURL("adminLocator"),
+      filename1   = "lpr_000a21a_e.zip",
+      targetFile  = "lpr_000a21a_e.shp",
+      alsoExtract = "similar",
+      fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
+    )
 
-      sim$adminLocator <- prepInputs(
-        destinationPath = inputPath(sim),
-        url = sim$adminLocatorURL
-      )
+    # Split Newfoundland and Labrador
+    sim$adminLocator <- cbind(name = sim$adminLocator$PRENAME, sim$adminLocator)
 
-    }else{
+    adminSplit <- terra::split(
+      terra::vect(sim$adminLocator),
+      terra::vect(sf::st_sfc(sf::st_linestring(rbind(c(8476500, 2297500), c(8565300, 2451300))),
+                             crs = sf::st_crs(sim$adminLocator))))
+    adminSplit <- sf::st_as_sf(adminSplit, agr = "constant")
+    sf::st_agr(adminSplit) <- "constant"
 
-      sim$adminLocator <- prepInputs(
-        destinationPath = inputPath(sim),
-        url         = extractURL("adminLocator"),
-        filename1   = "lpr_000a21a_e.zip",
-        targetFile  = "lpr_000a21a_e.shp",
-        alsoExtract = "similar",
-        fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
-      )
+    nl_cd <- sf::st_coordinates(sf::st_centroid(sf::st_geometry(
+      adminSplit[adminSplit$name == "Newfoundland and Labrador",])))
+    adminSplit[adminSplit$name == "Newfoundland and Labrador", "name"] <- sapply(
+      nl_cd[, "X"] == min(nl_cd[, "X"]), ifelse, "Labrador", "Newfoundland")
 
-      # Split Newfoundland and Labrador
-      sim$adminLocator <- cbind(name = sim$adminLocator$PRENAME, sim$adminLocator)
-
-      adminSplit <- terra::split(
-        terra::vect(sim$adminLocator),
-        terra::vect(sf::st_sfc(sf::st_linestring(rbind(c(8476500, 2297500), c(8565300, 2451300))),
-                               crs = sf::st_crs(sim$adminLocator))))
-      adminSplit <- sf::st_as_sf(adminSplit, agr = "constant")
-      sf::st_agr(adminSplit) <- "constant"
-
-      nl_cd <- sf::st_coordinates(sf::st_centroid(sf::st_geometry(
-        adminSplit[adminSplit$name == "Newfoundland and Labrador",])))
-      adminSplit[adminSplit$name == "Newfoundland and Labrador", "name"] <- sapply(
-        nl_cd[, "X"] == min(nl_cd[, "X"]), ifelse, "Labrador", "Newfoundland")
-
-      sim$adminLocator <- adminSplit
-    }
+    sim$adminLocator <- adminSplit
   }
 
   # Canada ecozones
   if (!suppliedElsewhere("ecoLocator", sim)){
 
-    if (suppliedElsewhere("ecoLocatorURL", sim) &
-        !identical(sim$ecoLocatorURL, extractURL("ecoLocator"))){
+    ## 2024-12-04 NOTE:
+    ## Multiple users had issues downloading and extracting this file via prepInputs.
+    ## Downloading the ZIP directly and saving it in the inputs directory works OK.
+    sim$ecoLocator <- tryCatch(
 
-      sim$ecoLocator <- prepInputs(
+      prepInputs(
         destinationPath = inputPath(sim),
-        url = sim$ecoLocatorURL
-      )
+        url         = extractURL("ecoLocator"),
+        filename1   = "ecozone_shp.zip",
+        targetFile  = "ecozones.shp",
+        alsoExtract = "similar",
+        fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
+      ),
 
-    }else{
+      error = function(e) stop(
+        "Canada ecozones Shapefile failed be downloaded and extracted:\n", e$message, "\n\n",
+        "If this error persists, download the ZIP file directly and save it to the inputs directory.",
+        "\nDownload URL: ", extractURL("ecoLocator"),
+        "\nInputs directory: ", normalizePath(inputPath(sim), winslash = "/"),
+        call. = FALSE))
 
-      ## 2024-12-04 NOTE:
-      ## Multiple users had issues downloading and extracting this file via prepInputs.
-      ## Downloading the ZIP directly and saving it in the inputs directory works OK.
-      sim$ecoLocator <- tryCatch(
-
-        prepInputs(
-          destinationPath = inputPath(sim),
-          url         = extractURL("ecoLocator"),
-          filename1   = "ecozone_shp.zip",
-          targetFile  = "ecozones.shp",
-          alsoExtract = "similar",
-          fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
-        ),
-
-        error = function(e) stop(
-          "Canada ecozones Shapefile failed be downloaded and extracted:\n", e$message, "\n\n",
-          "If this error persists, download the ZIP file directly and save it to the inputs directory.",
-          "\nDownload URL: ", extractURL("ecoLocator"),
-          "\nInputs directory: ", normalizePath(inputPath(sim), winslash = "/"),
-          call. = FALSE))
-
-      # Drop other fields
-      sim$ecoLocator <- sim$ecoLocator[, "ECOZONE"]
-    }
+    # Drop other fields
+    sim$ecoLocator <- sim$ecoLocator[, "ECOZONE"]
   }
 
   # Cohort ages
