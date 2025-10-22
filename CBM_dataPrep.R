@@ -77,24 +77,18 @@ defineModule(sim, list(
     expectsInput(
       objectName = "curveID", objectClass = "character",
       desc = paste(
-        "Column(s) uniquely defining each growth curve in `cohortDT`, `userGcMeta`, and `userGcM3`.",
+        "Column(s) uniquely defining each growth curve in `cohortDT` and `userGcMeta`.",
         "Each column must have a corresponding named spatial data source in `cohortLocators`")),
     expectsInput(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = paste(
-        "Growth curve metadata for CBM_vol2biomass.",
-        "If provided, species names will be matched with known species get additional attributes."),
-      columns = list(
-        species = "Species name"
-      )),
+        "Growth curve metadata. An input to CBM_vol2biomass.",
+        "If provided, species names will be matched with known species get additional attributes.")),
     expectsInput(
       objectName = "gcMeta", objectClass = "data.table",
       desc = paste(
-        "Growth curve metadata.",
-        "If provided, species names will be matched with known species get additional attributes."),
-      columns = list(
-        species = "Species name"
-      )),
+        "Growth curve metadata. An input to CBM_core.",
+        "If provided, species names will be matched with known species get additional attributes.")),
     expectsInput(
       objectName = "disturbanceRasters", objectClass = "list",
       desc = paste(
@@ -149,17 +143,13 @@ defineModule(sim, list(
       columns = c(
         cohortID   = "`masterRaster` cell index",
         pixelIndex = "`masterRaster` cell index",
-        age        = "Cohort ages extracted from input `ageLocator`",
-        ageSpinup  = "Cohort ages raised to minimum of `ageSpinupMin` to use in the spinup",
+        age        = "Cohort ages extracted from `ageLocator`",
+        ageSpinup  = "Cohort ages raised to >= `ageSpinupMin`",
         gcids      = "Growth curve ID unique to every spatial unit and `curveID`"
       )),
     createsOutput(
       objectName = "userGcSPU", objectClass = "data.table",
-      desc = "Table of growth curves and spatial unit combinations in the cohorts.",
-      columns = list(
-        curveID         = "Growth curve ID",
-        spatial_unit_id = "CBM-CFS3 spatial unit ID"
-      )),
+      desc = "Table of growth curve and spatial unit combinations `cohortDT`."),
     createsOutput(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = "Growth curve metadata with additional species attributes.",
@@ -181,14 +171,11 @@ defineModule(sim, list(
         genus         = "NFI species genus"
       )),
     createsOutput(
-      objectName = "disturbanceEvents", objectClass = "data.table",
-      desc = paste(
-        "Table with disturbance events for each simulation year.",
-        "Input `disturbanceRasters` are aligned with the `masterRaster`",
-        "and the events are summarized into this table.")),
-    createsOutput(
       objectName = "disturbanceMeta", objectClass = "data.table",
-      desc = "Table defining the disturbance event types.")
+      desc = "Table defining `disturbanceEvents` event types."),
+    createsOutput(
+      objectName = "disturbanceEvents", objectClass = "data.table",
+      desc = "Table of disturbance events.")
   )
 ))
 
@@ -717,25 +704,16 @@ ReadDisturbancesNTEMS <- function(sim){
 
   # CBM-CFS3 defaults database
   if (!suppliedElsewhere("dbPath", sim)){
-    if (suppliedElsewhere("dbPathURL", sim)){
 
-      sim$dbPath <- prepInputs(
-        destinationPath = inputPath(sim),
-        url = sim$dbPathURL
-      )
+    sim$dbPath <- file.path(inputPath(sim), "cbm_defaults_v1.2.8340.362.db")
 
-    }else{
-
-      sim$dbPath <- file.path(inputPath(sim), "cbm_defaults_v1.2.8340.362.db")
-
-      if (!file.exists(sim$dbPath)) prepInputs(
-        destinationPath = inputPath(sim),
-        url         = extractURL("dbPath"),
-        targetFile  = basename(sim$dbPath),
-        dlFun       = download.file(extractURL("dbPath"), sim$dbPath, mode = "wb", quiet = TRUE),
-        fun         = NA
-      )
-    }
+    if (!file.exists(sim$dbPath)) prepInputs(
+      destinationPath = inputPath(sim),
+      url         = extractURL("dbPath"),
+      targetFile  = basename(sim$dbPath),
+      dlFun       = download.file(extractURL("dbPath"), sim$dbPath, mode = "wb", quiet = TRUE),
+      fun         = NA
+    )
   }
 
 
