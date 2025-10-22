@@ -63,11 +63,9 @@ defineModule(sim, list(
     expectsInput(
       objectName = "gcIndexLocator", objectClass = "sf|SpatRaster|character",
       desc = paste(
-        "Spatial data source of growth curve ID locations",
-        "or a single value to use for all cohorts.",
+        "Growth curve ID(s).",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.",
         "If provided, IDs will be added to the 'curveID' column of `cohortDT` and `curveID` will be set to 'curveID'")),
-    expectsInput(
-      objectName = "gcIndexLocatorURL", objectClass = "character", desc = "URL for `gcIndexLocator`"),
     expectsInput(
       objectName  = "cohortLocators",
       objectClass = "list",
@@ -805,15 +803,6 @@ ReadDisturbancesNTEMS <- function(sim){
     warning("'ageDataYear' not provided by user; `ageLocator` ages assumed to represent cohort age at simulation start")
 
     sim$ageDataYear <- as.numeric(start(sim))
-  }
-
-  # Growth curve locations
-  if (!suppliedElsewhere("gcIndexLocator", sim) & suppliedElsewhere("gcIndexLocatorURL", sim)){
-
-    sim$gcIndexLocator <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$gcIndexLocatorURL
-    )
   }
 
 
