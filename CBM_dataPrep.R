@@ -159,8 +159,8 @@ defineModule(sim, list(
       columns = c(
         cohortID   = "`masterRaster` cell index",
         pixelIndex = "`masterRaster` cell index",
-        age        = "Cohort ages extracted from input `ageLocator`",
-        ageSpinup  = "Cohort ages raised to minimum of `ageSpinupMin` to use in the spinup",
+        age        = "Cohort ages extracted from `ageLocator`",
+        ageSpinup  = "Cohort ages raised to >= `ageSpinupMin`",
         gcids      = "Growth curve ID unique to every spatial unit and `curveID`"
       )),
     createsOutput(
