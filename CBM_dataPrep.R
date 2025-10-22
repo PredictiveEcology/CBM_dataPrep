@@ -49,17 +49,17 @@ defineModule(sim, list(
       objectName = "ageLocator", objectClass = "sf|SpatRaster|numeric",
       desc = "Spatial data source of cohort ages or a single value to use for all cohorts."),
     expectsInput(
-      objectName = "ageLocatorURL", objectClass = "character", desc = "URL for `ageLocator`"),
+      objectName  = "ageLocator",
+      objectClass = "sf|SpatRaster|character|numeric",
+      desc = paste(
+        "Cohort ages at the simulation start year.",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "ageDataYear", objectClass = "numeric",
-      desc = paste(
-        "Year that the ages in `ageLocator` represent.",
-        "If omitted, ages are assumed to represent the simulation start year.")),
+      desc = "Year that the ages in `ageLocator` represent. If omitted, ages are assumed to represent the simulation start year."),
     expectsInput(
       objectName = "ageSpinupMin", objectClass = "numeric",
-      desc = paste(
-        "Minimum age for cohorts during spinup.",
-        "Temporary fix to CBM_core issue: https://github.com/PredictiveEcology/CBM_core/issues/1")),
+      desc = "Minimum age for cohorts during spinup. Temporary fix to CBM_core issue #1: https://github.com/PredictiveEcology/CBM_core/issues/1"),
     expectsInput(
       objectName = "gcIndexLocator", objectClass = "sf|SpatRaster|character",
       desc = paste(
@@ -798,14 +798,6 @@ ReadDisturbancesNTEMS <- function(sim){
   }
 
   # Cohort ages
-  if (!suppliedElsewhere("ageLocator", sim) & suppliedElsewhere("ageLocatorURL", sim)){
-
-    sim$ageLocator <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$ageLocatorURL
-    )
-  }
-
   if (!suppliedElsewhere("ageDataYear", sim) & !is.null(sim$ageLocator)){
 
     warning("'ageDataYear' not provided by user; `ageLocator` ages assumed to represent cohort age at simulation start")
