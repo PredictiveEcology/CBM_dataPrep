@@ -85,24 +85,18 @@ defineModule(sim, list(
     expectsInput(
       objectName = "curveID", objectClass = "character",
       desc = paste(
-        "Column(s) uniquely defining each growth curve in `cohortDT`, `userGcMeta`, and `userGcM3`.",
+        "Column(s) uniquely defining each growth curve in `cohortDT` and `userGcMeta`.",
         "Each column must have a corresponding named spatial data source in `cohortLocators`")),
     expectsInput(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = paste(
-        "Growth curve metadata for CBM_vol2biomass.",
+        "Growth curve metadata. An input to CBM_vol2biomass.",
         "If provided, species names will be matched with known species get additional attributes."),
-      columns = list(
-        species = "Species name"
-      )),
     expectsInput(
       objectName = "gcMeta", objectClass = "data.table",
       desc = paste(
-        "Growth curve metadata.",
-        "If provided, species names will be matched with known species get additional attributes."),
-      columns = list(
-        species = "Species name"
-      )),
+        "Growth curve metadata. An input to CBM_core.",
+        "If provided, species names will be matched with known species get additional attributes.")),
     expectsInput(
       objectName = "disturbanceRasters", objectClass = "list",
       desc = paste(
