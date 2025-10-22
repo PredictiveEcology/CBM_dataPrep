@@ -47,7 +47,9 @@ defineModule(sim, list(
         "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "ageLocator", objectClass = "sf|SpatRaster|numeric",
-      desc = "Spatial data source of cohort ages or a single value to use for all cohorts."),
+      desc = paste(
+        "Cohort ages at the simulation start year.",
+        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName  = "ageLocator",
       objectClass = "sf|SpatRaster|character|numeric",
