@@ -27,10 +27,10 @@ defineModule(sim, list(
   ),
   inputObjects = bindrows(
     expectsInput(
-      objectName = "masterRaster", objectClass = "SpatRaster",
-      desc = "Raster template defining the study area. NA cells will be excluded from analysis."),
-    expectsInput(
-      objectName = "masterRasterURL", objectClass = "character", desc = "URL for `masterRaster`"),
+      objectName = "masterRaster", objectClass = "SpatRaster|character",
+      desc = paste(
+        "Raster template defining the study area. NA cells will be excluded from analysis.",
+        "This can be provided as a SpatRaster or URL.")),
     expectsInput(
       objectName = "ecoLocator", objectClass = "sf|SpatRaster|numeric",
       sourceURL = "http://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip",
@@ -250,11 +250,21 @@ ReadMasterRaster <- function(sim){
   if (is.null(sim$masterRaster)) stop("masterRaster not found")
 
   if (!inherits(sim$masterRaster, "SpatRaster")){
-    sim$masterRaster <- tryCatch(
-      terra::rast(sim$masterRaster),
-      error = function(e) stop(
-        "masterRaster could not be converted to SpatRaster: ", e$message,
-        call. = FALSE))
+
+    if (isURL(sim$masterRaster)){
+      sim$masterRaster <- reproducible::prepInputs(
+        destinationPath = inputPath(sim),
+        url = sim$masterRaster,
+        fun = terra::rast
+      )
+
+    }else{
+      sim$masterRaster <- tryCatch(
+        terra::rast(sim$masterRaster),
+        error = function(e) stop(
+          "masterRaster could not be converted to SpatRaster: ", e$message,
+          call. = FALSE))
+    }
   }
 
   # Mask cells outside of admin boundary
@@ -727,15 +737,6 @@ ReadDisturbancesNTEMS <- function(sim){
 
   ## Define stands and cohorts ----
 
-  # Master raster
-  if (!suppliedElsewhere("masterRaster", sim) & suppliedElsewhere("masterRasterURL", sim)){
-
-    sim$masterRaster <- prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$masterRasterURL
-    )
-  }
-
   # Canada admin boundaries
   if (!suppliedElsewhere("adminLocator", sim)){
 
@@ -869,4 +870,3 @@ ReadDisturbancesNTEMS <- function(sim){
 
   return(invisible(sim))
 }
-
