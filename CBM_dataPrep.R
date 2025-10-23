@@ -33,29 +33,24 @@ defineModule(sim, list(
         "This can be provided as a SpatRaster or URL.")),
     expectsInput(
       objectName  = "adminLocator",
-      objectClass = "sf|SpatRaster|character",
-      sourceURL  = "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000a21a_e.zip",
+      objectClass = "sf|SpatRaster|sourceID|URL|character",
+      sourceID    = "StatCan-admin",
       desc = paste(
         "Canada administrative boundary name(s).",
-        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
+        "This can be provided as a spatial object, a `CBMutils::CBMsources` sourceID, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName  = "ecoLocator",
-      objectClass = "sf|SpatRaster|character|numeric",
-      sourceURL   = "http://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip",
+      objectClass = "sf|SpatRaster|sourceID|URL|numeric",
+      sourceID    = "CanSIS-ecozone",
       desc = paste(
         "Canada ecozone ID(s).",
-        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
-    expectsInput(
-      objectName = "ageLocator", objectClass = "sf|SpatRaster|numeric",
-      desc = paste(
-        "Cohort ages at the simulation start year.",
-        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
+        "This can be provided as a spatial object, a `CBMutils::CBMsources` sourceID, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName  = "ageLocator",
-      objectClass = "sf|SpatRaster|character|numeric",
+      objectClass = "sf|SpatRaster|sourceID|URL|numeric",
       desc = paste(
         "Cohort ages at the simulation start year.",
-        "This can be provided as a spatial object, a URL, or a single value for all cohorts.")),
+        "This can be provided as a spatial object, a `CBMutils::CBMsources` sourceID, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "ageDataYear", objectClass = "numeric",
       desc = "Year that the ages in `ageLocator` represent. If omitted, ages are assumed to represent the simulation start year."),
@@ -73,7 +68,11 @@ defineModule(sim, list(
       objectClass = "list",
       desc = paste(
         "Named list of data sources defining cohorts.",
-        "Each item may be a spatial object, a URL, or a single value for all cohorts.")),
+        "Each item may be a spatial object, a `CBMutils::CBMsources` sourceID, a URL, or a single value for all cohorts.")),
+    expectsInput(
+      objectName  = "CBMsourceIDs",
+      objectClass = "character",
+      desc = "`CBMutils::CBMsources` sourceID(s) to use as cohort locators."),
     expectsInput(
       objectName = "curveID", objectClass = "character",
       desc = "Column(s) uniquely defining each growth curve in `cohortDT` and `userGcMeta`."),
@@ -145,6 +144,11 @@ defineModule(sim, list(
         ageSpinup  = "Cohort ages raised to >= `ageSpinupMin`",
         gcids      = "Growth curve ID unique to every spatial unit and `curveID`"
       )),
+    expectsInput(
+      objectName = "curveID", objectClass = "character",
+      desc = paste(
+        "Column(s) uniquely defining each growth curve in `cohortDT` and `userGcMeta`.",
+        "Defaults to the nmes of the columns created by `cohortLocators` and `CBMsourceIDs`.")),
     createsOutput(
       objectName = "userGcSPU", objectClass = "data.table",
       desc = "Table of growth curve and spatial unit combinations `cohortDT`."),
@@ -277,24 +281,34 @@ ReadCohorts <- function(sim){
   }
 
   # Set cohort attributes from input sources
+  colInputs <- list(
+    admin_name = sim$adminLocator,
+    ecozone    = sim$ecoLocator,
+    age        = sim$ageLocator,
+    curveID    = sim$gcIndexLocator
+  )
+
   if (length(sim$cohortLocators) > 0){
+
     if (!is.list(sim$cohortLocators) || is.null(names(sim$cohortLocators))) stop(
       "'cohortLocators' must be a named list")
     if (any(is.na(names(sim$cohortLocators)))) stop("'cohortLocators' names contains NAs")
-    sim$cohortLocators <- sim$cohortLocators[!sapply(sim$cohortLocators, is.null)]
+
+    colInputs <- c(colInputs, sim$cohortLocators)
   }
 
-  colInputs <- c(
-    list(
-      admin_name = sim$adminLocator,
-      ecozone    = sim$ecoLocator,
-      age        = sim$ageLocator,
-      curveID    = sim$gcIndexLocator
-    ),
-    sim$cohortLocators
-  )
-  colInputs <- colInputs[!sapply(colInputs, is.null)]
+  if (length(sim$CBMsourceIDs) > 0){
 
+    if (!all(sim$CBMsourceIDs %in% CBMutils::CBMsources$sourceID)) stop(
+      "sourceID(s) not found in `CBMutils::CBMsources$sourceID`: ",
+      paste(shQuote(setdiff(sim$CBMsourceIDs, CBMutils::CBMsources$sourceID)), collapse = ", "))
+
+    colInputs <- c(
+      colInputs,
+      with(subset(CBMutils::CBMsources, sourceID %in% sim$CBMsourceIDs), setNames(sourceID, attr)))
+  }
+
+  colInputs <- colInputs[!sapply(colInputs, is.null)]
   for (colName in names(colInputs)){
 
     if (isValue(colInputs[[colName]])){
@@ -304,15 +318,28 @@ ReadCohorts <- function(sim){
 
     }else{
 
-      message("Extracting spatial input data into column '", colName, "'")
+      if (isCBMsource(colInputs[[colName]])){
 
-      if (isURL(allPixDT[[colName]])){
-        allPixDT[[colName]] <- reproducible::prepInputs(
-          destinationPath = inputPath(sim),
-          url             = allPixDT[[colName]])
+        message("Extracting CBM source '", colInputs[[colName]], "' into column '", colName, "'")
+
+        sourceCBM <- CBMutils::CBMsourceExtractToRast(colInputs[[colName]], sim$masterRaster) |> Cache()
+
+        allPixDT[[colName]] <- sourceCBM$extractToRast
+
+        if (colName == "age") sim$ageDataYear <- sourceCBM$year
+
+      }else{
+
+        message("Extracting spatial input data into column '", colName, "'")
+
+        if (isURL(allPixDT[[colName]])){
+          allPixDT[[colName]] <- reproducible::prepInputs(
+            destinationPath = inputPath(sim),
+            url             = allPixDT[[colName]])
+        }
+
+        allPixDT[[colName]] <- CBMutils::extractToRast(colInputs[[colName]], sim$masterRaster) |> Cache()
       }
-
-      allPixDT[[colName]] <- CBMutils::extractToRast(colInputs[[colName]], sim$masterRaster) |> Cache()
 
       if (P(sim)$saveRasters){
         outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0("input_", colName, ".tif"))
@@ -433,6 +460,12 @@ ReadCohorts <- function(sim){
       allPixDT[, age := as.integer(age)]
     }
 
+    # Set cohort age data year if not set
+    if (is.null(sim$ageDataYear)){
+      warning("'ageDataYear' not provided by user; `ageLocator` ages assumed to represent cohort age at simulation start")
+      sim$ageDataYear <- as.numeric(start(sim))
+    }
+
     # Adjust cohort ages
     ## TODO: add step to adjust cohort ages to the simulation start year
     if (!is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
@@ -447,7 +480,6 @@ ReadCohorts <- function(sim){
   }
 
   # Prepare growth curves
-  if (!is.null(sim$gcIndexLocator)) sim$curveID <- "curveID"
   if (!is.null(sim$curveID)){
 
     if (!all(sim$curveID %in% names(allPixDT))) stop("cohortDT does not contain all columns in `curveID`")
@@ -468,7 +500,7 @@ ReadCohorts <- function(sim){
   if (is.null(sim$cohortDT)){
     allPixDT[, cohortID := pixelIndex]
     sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
-      c("cohortID", "pixelIndex", "gcids", "age", "ageSpinup", sim$curveID, names(sim$cohortLocators)),
+      c("cohortID", "pixelIndex", "age", "ageSpinup", names(colInputs), "gcids"),
       names(allPixDT))]
     data.table::setkey(sim$cohortDT, cohortID)
   }
@@ -705,8 +737,6 @@ ReadDisturbancesNTEMS <- function(sim){
 
 .inputObjects <- function(sim){
 
-  ## Databases ----
-
   # CBM-CFS3 defaults database
   if (!suppliedElsewhere("dbPath", sim)){
 
@@ -721,77 +751,29 @@ ReadDisturbancesNTEMS <- function(sim){
     )
   }
 
+  # Canada admin boundaries & ecozones
+  defaultSourceIDs <- with(
+    list(x = inputObjects(sim, "CBM_dataPrep")),
+    sapply(split(x$sourceID, x$objectName), unlist))
 
-  ## Define stands and cohorts ----
+  if (!suppliedElsewhere("adminLocator", sim)) sim$adminLocator <- defaultSourceIDs[["adminLocator"]]
+  if (!suppliedElsewhere("ecoLocator",   sim)) sim$ecoLocator   <- defaultSourceIDs[["ecoLocator"]]
 
-  # Canada admin boundaries
-  if (!suppliedElsewhere("adminLocator", sim)){
+  # Growth curve ID
+  if (!suppliedElsewhere("curveID", sim)){
 
-    sim$adminLocator <- prepInputs(
-      destinationPath = inputPath(sim),
-      url         = extractURL("adminLocator"),
-      filename1   = "lpr_000a21a_e.zip",
-      targetFile  = "lpr_000a21a_e.shp",
-      alsoExtract = "similar",
-      fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
-    )
+    if (suppliedElsewhere("gcIndexLocator")){
+      sim$curveID <- "curveID"
 
-    # Split Newfoundland and Labrador
-    sim$adminLocator <- cbind(name = sim$adminLocator$PRENAME, sim$adminLocator)
-
-    adminSplit <- terra::split(
-      terra::vect(sim$adminLocator),
-      terra::vect(sf::st_sfc(sf::st_linestring(rbind(c(8476500, 2297500), c(8565300, 2451300))),
-                             crs = sf::st_crs(sim$adminLocator))))
-    adminSplit <- sf::st_as_sf(adminSplit, agr = "constant")
-    sf::st_agr(adminSplit) <- "constant"
-
-    nl_cd <- sf::st_coordinates(sf::st_centroid(sf::st_geometry(
-      adminSplit[adminSplit$name == "Newfoundland and Labrador",])))
-    adminSplit[adminSplit$name == "Newfoundland and Labrador", "name"] <- sapply(
-      nl_cd[, "X"] == min(nl_cd[, "X"]), ifelse, "Labrador", "Newfoundland")
-
-    sim$adminLocator <- adminSplit
+    }else{
+      curveID <- c(
+        names(sim$cohortLocators)[!sapply(sim$cohortLocators, is.null)],
+        setdiff(subset(CBMutils::CBMsources, sourceID %in% sim$CBMsourceIDs)$attr, "age")
+      )
+      if (length(curveID) > 0) sim$curveID <- unique(curveID)
+    }
   }
 
-  # Canada ecozones
-  if (!suppliedElsewhere("ecoLocator", sim)){
-
-    ## 2024-12-04 NOTE:
-    ## Multiple users had issues downloading and extracting this file via prepInputs.
-    ## Downloading the ZIP directly and saving it in the inputs directory works OK.
-    sim$ecoLocator <- tryCatch(
-
-      prepInputs(
-        destinationPath = inputPath(sim),
-        url         = extractURL("ecoLocator"),
-        filename1   = "ecozone_shp.zip",
-        targetFile  = "ecozones.shp",
-        alsoExtract = "similar",
-        fun         = sf::st_read(targetFile, agr = "constant", quiet = TRUE)
-      ),
-
-      error = function(e) stop(
-        "Canada ecozones Shapefile failed be downloaded and extracted:\n", e$message, "\n\n",
-        "If this error persists, download the ZIP file directly and save it to the inputs directory.",
-        "\nDownload URL: ", extractURL("ecoLocator"),
-        "\nInputs directory: ", normalizePath(inputPath(sim), winslash = "/"),
-        call. = FALSE))
-
-    # Drop other fields
-    sim$ecoLocator <- sim$ecoLocator[, "ECOZONE"]
-  }
-
-  # Cohort ages
-  if (!suppliedElsewhere("ageDataYear", sim) & !is.null(sim$ageLocator)){
-
-    warning("'ageDataYear' not provided by user; `ageLocator` ages assumed to represent cohort age at simulation start")
-
-    sim$ageDataYear <- as.numeric(start(sim))
-  }
-
-
-  ## Return simList ----
-
+  # Return simList
   return(invisible(sim))
 }

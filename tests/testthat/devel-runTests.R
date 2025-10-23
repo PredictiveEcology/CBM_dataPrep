@@ -29,6 +29,6 @@
   # Run module tests
   testthat::test_dir("tests/testthat", filter = "module")
 
-  # Run integration tests
-  testthat::test_dir("tests/testthat", filter = "integration")
+  # Run data source tests
+  testthat::test_dir("tests/testthat", filter = "sources")
 

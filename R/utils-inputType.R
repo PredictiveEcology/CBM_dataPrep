@@ -13,8 +13,11 @@ isURL <- function(x){
 
 isValue <- function(x){
   !is.null(x) && is.vector(x) && length(x) == 1 &&
-    !isFile(x) && !isURL(x)
+    !isFile(x) && !isURL(x) && !isCBMsource(x)
 }
 
-
+isCBMsource <- function(x){
+  !is.null(x) && is.character(x) && length(x) == 1 &&
+    x %in% CBMutils::CBMsources$sourceID
+}
 
