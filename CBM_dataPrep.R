@@ -428,18 +428,25 @@ ReadCohorts <- function(sim){
     }
   }
 
-  # Adjust cohort ages
-  if ("age" %in% names(allPixDT) && !is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
+  if ("age" %in% names(allPixDT)){
 
-    # TODO: add step to adjust cohort ages to the simulation start year
-    warning("Cohort age data is from ", sim$ageDataYear,
-            " instead of the simulation start year")
-  }
+    # Round ages
+    if (!is.integer(allPixDT$age)){
+      allPixDT[, age := round(age)]
+    }
 
-  # Set spinup age
-  if ("age" %in% names(allPixDT) && !is.null(sim$ageSpinupMin)){
-    allPixDT[, ageSpinup := age]
-    allPixDT[ageSpinup < sim$ageSpinupMin, ageSpinup := sim$ageSpinupMin]
+    # Adjust cohort ages
+    if (!is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
+
+      # TODO: add step to adjust cohort ages to the simulation start year
+      warning("Cohort age data is from ", sim$ageDataYear, " instead of the simulation start year")
+    }
+
+    # Set spinup age
+    if (!is.null(sim$ageSpinupMin)){
+      allPixDT[, ageSpinup := age]
+      allPixDT[ageSpinup < sim$ageSpinupMin, ageSpinup := sim$ageSpinupMin]
+    }
   }
 
   # Set growth curve ID
