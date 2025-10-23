@@ -53,7 +53,7 @@ defineModule(sim, list(
         "This can be provided as a spatial object, a `CBMutils::CBMsources` sourceID, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "ageDataYear", objectClass = "numeric",
-      desc = "Year that the ages in `ageLocator` represent. If omitted, ages are assumed to represent the simulation start year."),
+      desc = "Year that the ages in `ageLocator` represent."),
     expectsInput(
       objectName = "ageSpinupMin", objectClass = "numeric",
       desc = "Minimum age for cohorts during spinup. Temporary fix to CBM_core issue #1: https://github.com/PredictiveEcology/CBM_core/issues/1"),
@@ -144,6 +144,12 @@ defineModule(sim, list(
         ageSpinup  = "Cohort ages raised to >= `ageSpinupMin`",
         gcids      = "Growth curve ID unique to every spatial unit and `curveID`"
       )),
+    createsOutput(
+      objectName = "ageDataYear", objectClass = "numeric",
+      desc = paste(
+        "Year that the ages in `ageLocator` represent.",
+        "If `ageLocator` is a `CBMutils::CBMsources` sourceID this will be automatically set.",
+        "Otherwise, if omitted, ages are assumed to represent the simulation start year.")),
     expectsInput(
       objectName = "curveID", objectClass = "character",
       desc = paste(
