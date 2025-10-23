@@ -428,9 +428,9 @@ ReadCohorts <- function(sim){
 
   if ("age" %in% names(allPixDT)){
 
-    # Round ages
+    # Convert to integer
     if (!is.integer(allPixDT$age)){
-      allPixDT[, age := round(age)]
+      allPixDT[, age := as.integer(age)]
     }
 
     # Adjust cohort ages
