@@ -76,9 +76,7 @@ defineModule(sim, list(
         "Each item may be a spatial object, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName = "curveID", objectClass = "character",
-      desc = paste(
-        "Column(s) uniquely defining each growth curve in `cohortDT` and `userGcMeta`.",
-        "Each column must have a corresponding named spatial data source in `cohortLocators`")),
+      desc = "Column(s) uniquely defining each growth curve in `cohortDT` and `userGcMeta`."),
     expectsInput(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = paste(
@@ -436,9 +434,8 @@ ReadCohorts <- function(sim){
     }
 
     # Adjust cohort ages
+    ## TODO: add step to adjust cohort ages to the simulation start year
     if (!is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
-
-      # TODO: add step to adjust cohort ages to the simulation start year
       warning("Cohort age data is from ", sim$ageDataYear, " instead of the simulation start year")
     }
 
@@ -449,11 +446,11 @@ ReadCohorts <- function(sim){
     }
   }
 
-  # Set growth curve ID
+  # Prepare growth curves
   if (!is.null(sim$gcIndexLocator)) sim$curveID <- "curveID"
   if (!is.null(sim$curveID)){
 
-    if (!all(sim$curveID %in% names(allPixDT))) stop("'cohortLocators' must contain all columns in `curveID`")
+    if (!all(sim$curveID %in% names(allPixDT))) stop("cohortDT does not contain all columns in `curveID`")
 
     # Define unique growth curves with spatial_unit_id
     allPixDT$gcids <- factor(
