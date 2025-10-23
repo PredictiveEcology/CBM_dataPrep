@@ -83,12 +83,12 @@ defineModule(sim, list(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = paste(
         "Growth curve metadata. An input to CBM_vol2biomass.",
-        "If provided, species names will be matched with known species get additional attributes.")),
+        "If provided, species names or LandR codes will be matched with known species get additional attributes.")),
     expectsInput(
       objectName = "gcMeta", objectClass = "data.table",
       desc = paste(
         "Growth curve metadata. An input to CBM_core.",
-        "If provided, species names will be matched with known species get additional attributes.")),
+        "If provided, species names or LandR codes will be matched with known species get additional attributes.")),
     expectsInput(
       objectName = "disturbanceRasters", objectClass = "list",
       desc = paste(
@@ -492,20 +492,23 @@ MatchSpecies <- function(sim){
   for (gcMetaTable in intersect(c("gcMeta", "userGcMeta"), objects(sim))){
     if (any(!c("species_id", "sw_hw", "canfi_species", "genus") %in% names(sim[[gcMetaTable]]))){
 
-      if (!"species" %in% names(sim[[gcMetaTable]])) stop(
-        gcMetaTable, " requires the 'species' names column to retrieve species data with CBMutils::sppMatch")
-
       if (!data.table::is.data.table(sim[[gcMetaTable]])){
         sim[[gcMetaTable]] <- data.table::as.data.table(sim[[gcMetaTable]])
       }
 
+      matchCol <- intersect(c("LandR", "species"), names(sim[[gcMetaTable]]))[1]
+      if (length(matchCol) == 0) stop(
+        gcMetaTable, " requires column(s) 'species' and/or 'LandR' to retrieve species metadata")
+
       sppMatchTable <- CBMutils::sppMatch(
-        sim[[gcMetaTable]]$species,
+        sim[[gcMetaTable]][[matchCol]],
         sppEquivalencies = sppEquiv,
-        return     = c("CBM_speciesID", "Broadleaf", "CanfiCode", "NFI", "LandR"),
+        match      = if (matchCol == "LandR") "LandR",
+        return     = c("EN_generic_full", "CBM_speciesID", "Broadleaf", "CanfiCode", "NFI", "LandR"),
         otherNames = list(
           "White birch" = "Paper birch"
         ))[, .(
+          species       = EN_generic_full,
           species_id    = CBM_speciesID,
           sw_hw         = data.table::fifelse(Broadleaf, "hw", "sw"),
           canfi_species = CanfiCode,
