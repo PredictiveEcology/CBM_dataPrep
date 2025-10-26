@@ -610,11 +610,11 @@ MatchDisturbances <- function(sim){
   return(invisible(sim))
 }
 
-ReadDisturbances <- function(sim){
+ReadDisturbances <- function(sim, year = time(sim)){
 
   # Get disturbances for the year
   distRasts <- lapply(sim$disturbanceRasters, function(d){
-    if (as.character(time(sim)) %in% names(d)) d[[as.character(time(sim))]]
+    if (as.character(time(sim)) %in% names(d)) d[[as.character(year)]]
   })
 
   # Retrieve disturbances from simList
@@ -644,7 +644,7 @@ ReadDisturbances <- function(sim){
     }else list(eventID = eventIDs[[1]])
 
     with(distMeta, message(
-      time(sim), ": ",
+      year, ": ",
       "Reading disturbances for eventID = ", eventID,
       if (exists("disturbance_type_id")) paste("; CBM type ID =", disturbance_type_id),
       if (exists("name"))                paste("; name =", shQuote(name))))
@@ -653,7 +653,7 @@ ReadDisturbances <- function(sim){
 
     if (P(sim)$saveRasters){
       outPath <- file.path(outputPath(sim), "CBM_dataPrep", sprintf(
-        "distEvents-%s_%s-%s.tif", eventIDs[[i]], time(sim), i))
+        "distEvents-%s_%s-%s.tif", eventIDs[[i]], year, i))
       message("Writing aligned raster to path: ", outPath)
       tryCatch(
         CBMutils::writeRasterWithValues(sim$masterRaster, distValues, outPath, overwrite = TRUE),
@@ -668,7 +668,7 @@ ReadDisturbances <- function(sim){
 
     data.table::data.table(
       pixelIndex = eventIndex,
-      year       = as.integer(time(sim) + c(na.omit(distMeta$sourceDelay), 0)[[1]]),
+      year       = as.integer(year + c(na.omit(distMeta$sourceDelay), 0)[[1]]),
       eventID    = eventIDs[[i]]
     )
   })
