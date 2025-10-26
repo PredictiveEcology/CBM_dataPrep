@@ -714,8 +714,7 @@ ReadDisturbancesNTEMS <- function(sim){
     ) |> Cache()
 
     with(newDist[i,], message(
-      time(sim), ": ",
-      "Reading disturbances for eventID = ", eventID,
+      "Reading NTEMS disturbances for eventID = ", eventID,
       "; CBM type ID = ", disturbance_type_id,
       "; name = ", shQuote(name)))
 
