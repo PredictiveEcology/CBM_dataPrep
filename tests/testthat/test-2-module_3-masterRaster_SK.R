@@ -63,6 +63,8 @@ test_that("Module: SK", {
   }
   expect_identical(data.table::key(simTest$standDT), "pixelIndex")
 
+  expect_false("admin_name" %in% names(simTest$standDT))
+
   expect_equal(nrow(simTest$standDT), 31302)
   expect_equal(simTest$standDT$pixelIndex, 1:31302)
   expect_in(simTest$standDT$area,              30 * 30)
