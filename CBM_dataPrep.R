@@ -198,10 +198,10 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
     init = {
 
       # Prepare master raster
-      sim <- ReadMasterRaster(sim)
+      sim <- PrepMasterRaster(sim)
 
       # Prepare cohorts
-      sim <- ReadCohorts(sim)
+      sim <- PrepCohorts(sim)
 
       # Prepare species data
       sim <- MatchSpecies(sim)
@@ -230,7 +230,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
   return(invisible(sim))
 }
 
-ReadMasterRaster <- function(sim){
+PrepMasterRaster <- function(sim){
 
   if (is.null(sim$masterRaster)) stop("masterRaster not found")
 
@@ -269,7 +269,7 @@ ReadMasterRaster <- function(sim){
   return(invisible(sim))
 }
 
-ReadCohorts <- function(sim){
+PrepCohorts <- function(sim){
 
   # Initiate pixel table
   allPixDT <- data.table::data.table(
