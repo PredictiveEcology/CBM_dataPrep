@@ -201,26 +201,49 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
       sim <- PrepMasterRaster(sim)
 
       # Prepare cohorts
-      sim <- PrepCohorts(sim)
+      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "prepCohorts", eventPriority = 2)
 
       # Prepare species data
-      sim <- MatchSpecies(sim)
+      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "matchSpecies", eventPriority = 1)
 
       # Prepare disturbances
-      sim <- MatchDisturbances(sim)
-
-      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbances", eventPriority = 8)
+      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "matchDisturbances", eventPriority = 8)
+      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbances",  eventPriority = 8)
 
       if ("NTEMS" %in% sim$disturbanceSource){
-        sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbancesNTEMS")
+        sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbancesNTEMS", eventPriority = 1)
+      }
+
+      # CBM_vol2biomass prep
+      if (!is.null(sim$curveID)){
+        sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "prepVol2Biomass", eventPriority = 4)
       }
     },
 
+    prepCohorts = {
+
+      # Read cohort data
+      sim <- PrepCohorts(sim)
+
+      # Subset cohorts
+      sim <- SubsetCohorts(sim)
+    },
+
+    prepVol2Biomass = {
+      sim <- PrepVol2Biomass(sim)
+    },
+
+    matchSpecies = {
+      sim <- MatchSpecies(sim)
+    },
+
+    matchDisturbances = {
+      sim <- MatchDisturbances(sim)
+    },
     readDisturbances = {
       sim <- ReadDisturbances(sim)
       sim <- scheduleEvent(sim, time(sim) + 1, "CBM_dataPrep", "readDisturbances", eventPriority = 8)
     },
-
     readDisturbancesNTEMS = {
       sim <- ReadDisturbancesNTEMS(sim)
     },
@@ -359,31 +382,6 @@ PrepCohorts <- function(sim){
     }
   }
 
-  # Subset table to cells where masterRaster is not NA
-  allPixDT <- allPixDT[terra::cells(sim$masterRaster),]
-  if (nrow(allPixDT) == 0) stop("all masterRaster values are NA")
-
-  # Remove pixels that are missing key attributes
-  if (length(colInputs) > 0){
-
-    isNA  <- is.na(allPixDT[, .SD, .SDcols = names(colInputs)])
-    hasNA <- colSums(isNA) > 0
-
-    if (any(hasNA)){
-
-      allPixDT <- allPixDT[rowSums(isNA[, hasNA, drop = FALSE]) == 0,]
-
-      rmMsg <- paste0(
-        round((1 - nrow(allPixDT) / nrow(isNA)) * 100, 2),
-        "% of pixels excluded due to NAs in one or more of: ",
-        paste(shQuote(names(hasNA)[hasNA]), collapse = ", "))
-      if (nrow(allPixDT) == 0) stop(rmMsg)
-      message(rmMsg)
-    }
-    rm(isNA)
-    rm(hasNA)
-  }
-
   # Set CBM-CFS3 spatial_unit_id
   if ("admin_name" %in% names(allPixDT)){
 
@@ -485,19 +483,9 @@ PrepCohorts <- function(sim){
     }
   }
 
-  # Prepare growth curves
-  if (!is.null(sim$curveID)){
-
-    if (!all(sim$curveID %in% names(allPixDT))) stop("cohortDT does not contain all columns in `curveID`")
-
-    # Define unique growth curves with spatial_unit_id
-    allPixDT$gcids <- factor(
-      CBMutils::gcidsCreate(allPixDT[, .SD, .SDcols = c("spatial_unit_id", sim$curveID)])
-    )
-    sim$userGcSPU <- unique(allPixDT[, .SD, .SDcols = c("spatial_unit_id", sim$curveID)])
-  }
-
   # Create sim$standDT and sim$cohortDT
+  allPixDT[, admin_name := NULL]
+
   sim$standDT <- allPixDT[, .SD, .SDcols = intersect(
     c("pixelIndex", "area", "admin_abbrev", "admin_boundary_id", "ecozone", "spatial_unit_id"),
     names(allPixDT))]
@@ -506,10 +494,55 @@ PrepCohorts <- function(sim){
   if (is.null(sim$cohortDT)){
     allPixDT[, cohortID := pixelIndex]
     sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
-      c("cohortID", "pixelIndex", "age", "ageSpinup", names(colInputs), "gcids"),
+      c("cohortID", "pixelIndex", "age", "ageSpinup", setdiff(names(colInputs), names(sim$standDT))),
       names(allPixDT))]
     data.table::setkey(sim$cohortDT, cohortID)
   }
+
+  return(invisible(sim))
+}
+
+SubsetCohorts <- function(sim){
+
+  # Subset cohorts to cells where masterRaster is not NA
+  sim$cohortDT <- sim$cohortDT[terra::cells(sim$masterRaster),]
+  if (nrow(sim$cohortDT) == 0) stop("all masterRaster values are NA")
+
+  # Remove pixels that are missing key attributes
+  cohortCols <- setdiff(names(sim$cohortDT), c("cohortID", "pixelIndex"))
+  if (length(cohortCols) > 0){
+
+    isNA  <- is.na(sim$cohortDT[, .SD, .SDcols = cohortCols])
+    hasNA <- colSums(isNA) > 0
+
+    if (any(hasNA)){
+
+      sim$cohortDT <- sim$cohortDT[rowSums(isNA[, hasNA, drop = FALSE]) == 0,]
+
+      rmMsg <- paste0(
+        round((1 - nrow(sim$cohortDT) / nrow(isNA)) * 100, 2),
+        "% of pixels excluded due to NAs in one or more of: ",
+        paste(shQuote(names(hasNA)[hasNA]), collapse = ", "))
+      if (nrow(sim$cohortDT) == 0) stop(rmMsg)
+      message(rmMsg)
+    }
+    rm(isNA)
+    rm(hasNA)
+  }
+
+  return(invisible(sim))
+}
+
+PrepVol2Biomass <- function(sim){
+
+  if (!all(sim$curveID %in% names(sim$cohortDT))) stop("cohortDT does not contain all columns in `curveID`")
+
+  # Define unique growth curves with spatial_unit_id
+  userGcSPU <- cbind(sim$standDT[sim$cohortDT$pixelIndex, .(spatial_unit_id)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
+
+  sim$userGcSPU <- unique(userGcSPU)
+
+  sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcSPU))]
 
   return(invisible(sim))
 }
