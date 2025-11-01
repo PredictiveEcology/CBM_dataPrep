@@ -450,10 +450,13 @@ PrepCohorts <- function(sim){
     data.table::setkey(allPixDT, pixelIndex)
 
     if (any(is.na(allPixDT$spatial_unit_id))){
-      noMatch <- unique(allPixDT[is.na(allPixDT$spatial_unit_id), .(ecozone, admin_name, spatial_unit_id)])
+      noMatch <- unique(allPixDT[
+        is.na(spatial_unit_id) & !is.na(ecozone) & !is.na(admin_name),
+        .(admin_name, ecozone, spatial_unit_id)])
       data.table::setkey(noMatch, admin_name, ecozone)
-      stop("spatial_unit_id not found for: ",
-           paste(paste(noMatch$admin_name, "ecozone", noMatch$ecozone), collapse = "; "))
+      if (nrow(noMatch) > 0) stop(
+        "spatial_unit_id not found for: ",
+        paste(paste(noMatch$admin_name, "ecozone", noMatch$ecozone), collapse = "; "))
     }
   }
 
