@@ -16,13 +16,14 @@ defineModule(sim, list(
   citation = list("citation.bib"),
   documentation = list("CBM_dataPrep.Rmd"),
   reqdPkgs = list(
-    "data.table", "RSQLite", "sf", "terra", "exactextractr",
-    "reproducible (>=2.1.2)" ,
-    "PredictiveEcology/CBMutils@development (>=2.1.2)",
+    "data.table", "RSQLite", "sf", "terra", "exactextractr", "gstat",
+    "reproducible (>=2.1.2)", "digest",
+    "PredictiveEcology/CBMutils@development (>=2.4)",
     "PredictiveEcology/LandR@development"
   ),
   parameters = rbind(
     defineParameter("saveRasters", "logical", FALSE, NA, NA, "Save rasters of inputs aligned to the `masterRaster`"),
+    defineParameter("ageBacktrack", "list", NA, NA, NA, "Age backtracking parameters"),
     defineParameter(".useCache", "character", c(".inputObjects", "init"), NA, NA, "Cache module events")
   ),
   inputObjects = bindrows(
@@ -54,6 +55,9 @@ defineModule(sim, list(
     expectsInput(
       objectName = "ageDataYear", objectClass = "numeric",
       desc = "Year that the ages in `ageLocator` represent."),
+    expectsInput(
+      objectName = "ageBacktrackSplit", objectClass = "character",
+      desc = "Optional. If backtracking ages, split the age layer by these `cohortDT` or `gcMeta` columns when interpolating ages."),
     expectsInput(
       objectName = "ageSpinupMin", objectClass = "numeric",
       desc = "Minimum age for cohorts during spinup. Temporary fix to CBM_core issue #1: https://github.com/PredictiveEcology/CBM_core/issues/1"),
@@ -225,6 +229,32 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
       # Read cohort data
       sim <- PrepCohorts(sim)
 
+      # Adjust cohort ages
+      if ("age" %in% names(sim$cohortDT) && !is.null(sim$ageDataYear) && start(sim) != sim$ageDataYear){
+
+        # Read disturbances
+        distYears <- sort(c(sim$ageDataYear, start(sim)))
+        for (year in distYears[[1]]:(distYears[[2]]-1)){
+          sim <- ReadDisturbances(sim, year = year)
+        }
+
+        # Step ages forward or backwards
+        if (start(sim) > sim$ageDataYear) sim <- AgeStepForward(sim)
+        if (start(sim) < sim$ageDataYear) sim <- AgeStepBackward(sim)
+      }
+
+      # Convert ages to integer; set spinup age
+      if ("age" %in% names(sim$cohortDT)){
+
+        if (!is.integer(sim$cohortDT$age)){
+          sim$cohortDT[, age := as.integer(round(age))]
+        }
+        if (!is.null(sim$ageSpinupMin)){
+          sim$cohortDT[, ageSpinup := age]
+          sim$cohortDT[ageSpinup < sim$ageSpinupMin, ageSpinup := sim$ageSpinupMin]
+        }
+      }
+
       # Subset cohorts
       sim <- SubsetCohorts(sim)
     },
@@ -382,6 +412,12 @@ PrepCohorts <- function(sim){
     }
   }
 
+  # Set cohort age data year if not set
+  if ("age" %in% names(allPixDT) & is.null(sim$ageDataYear)){
+    warning("'ageDataYear' not provided by user; `ageLocator` ages assumed to represent cohort age at simulation start")
+    sim$ageDataYear <- as.numeric(start(sim))
+  }
+
   # Set CBM-CFS3 spatial_unit_id
   if ("admin_name" %in% names(allPixDT)){
 
@@ -460,32 +496,6 @@ PrepCohorts <- function(sim){
     }
   }
 
-  if ("age" %in% names(allPixDT)){
-
-    # Convert to integer
-    if (!is.integer(allPixDT$age)){
-      allPixDT[, age := as.integer(age)]
-    }
-
-    # Set cohort age data year if not set
-    if (is.null(sim$ageDataYear)){
-      warning("'ageDataYear' not provided by user; `ageLocator` ages assumed to represent cohort age at simulation start")
-      sim$ageDataYear <- as.numeric(start(sim))
-    }
-
-    # Adjust cohort ages
-    ## TODO: add step to adjust cohort ages to the simulation start year
-    if (!is.null(sim$ageDataYear) && sim$ageDataYear != start(sim)){
-      warning("Cohort age data is from ", sim$ageDataYear, " instead of the simulation start year")
-    }
-
-    # Set spinup age
-    if (!is.null(sim$ageSpinupMin)){
-      allPixDT[, ageSpinup := age]
-      allPixDT[ageSpinup < sim$ageSpinupMin, ageSpinup := sim$ageSpinupMin]
-    }
-  }
-
   # Create sim$standDT and sim$cohortDT
   allPixDT[, admin_name := NULL]
 
@@ -531,6 +541,119 @@ SubsetCohorts <- function(sim){
     }
     rm(isNA)
     rm(hasNA)
+  }
+
+  return(invisible(sim))
+}
+
+AgeStepForward <- function(sim){
+
+  # WORK IN PROGRESS
+  warning("Cohort age data is from ", sim$ageDataYear, " instead of the simulation start year",
+          call. = FALSE)
+
+  return(invisible(sim))
+}
+
+AgeStepBackward <- function(sim){
+
+  # Skip process if there are multiple cohorts per pixel
+  if (any(duplicated(sim$cohortDT$pixelIndex))){
+    warning("Cohort age data is from ", sim$ageDataYear, " instead of the simulation start year",
+            call. = FALSE)
+    return(invisible(sim))
+  }
+
+  # Get age raster
+  if (is.null(sim$ageBacktrackSplit)){
+
+    # Get age raster
+    ageRast <- terra::rast(sim$masterRaster, vals = NA)
+    terra::set.values(ageRast, sim$cohortDT$pixelIndex, sim$cohortDT$age)
+    ageRastList <- list(ageRast)
+
+  }else{
+
+    # Split age raster by splitting columns
+    splitTbl <- sim$cohortDT
+
+    colMissing <- setdiff(sim$ageBacktrackSplit, names(sim$cohortDT))
+    if (length(colMissing) > 0){
+
+      spsJoin <- lapply(c("userGcMeta", "gcMeta"), function(tbl){
+        if (colMissing %in% names(sim[[tbl]])) unique(
+          sim[[tbl]][, .SD, .SDcols = c(sim$curveID, colMissing)])
+      })
+      spsJoin <- spsJoin[!sapply(spsJoin, is.null)]
+
+      if (length(spsJoin) == 0) stop(
+        "ageBacktrackSplit column(s) not found: ",
+        paste(shQuote(colMissing), collapse = ", "))
+
+      splitTbl <- merge(splitTbl, spsJoin[[1]], by = sim$curveID, all.x = TRUE)
+    }
+
+    splitTbl <- splitTbl[, .SD, .SDcols = c("pixelIndex", sim$ageBacktrackSplit)]
+    splitTbl[, split := .GRP, by = eval(sim$ageBacktrackSplit)]
+
+    ageRastList <- lapply(unique(splitTbl$split), function(spl){
+      ageRast <- terra::rast(sim$masterRaster, vals = NA)
+      ageVals <- sim$cohortDT[pixelIndex %in% splitTbl[split == spl, pixelIndex], .(pixelIndex, age)]
+      terra::set.values(ageRast, ageVals$pixelIndex, ageVals$age)
+    })
+    rm(splitTbl)
+  }
+
+  # Backtrack
+  ageStepBack <- function(ageRast, yearIn, yearOut, distEvents, params){
+
+    withCallingHandlers(
+
+      do.call(
+        CBMutils::ageStepBackward,
+        c(list(
+          ageRast    = ageRast,
+          yearIn     = yearIn,
+          yearOut    = yearOut,
+          distEvents = distEvents
+        ),
+        if (!identical(P(sim)$ageBacktrack, NA)) params)
+      ),
+      message = function(m){
+        message("Group ", i, "/", length(ageRastList), ": ", gsub("\\n", "", conditionMessage(m)))
+        invokeRestart("muffleMessage")
+      }
+    )
+  }
+
+  distDigest <- digest::digest(sim$disturbanceEvents)
+  for (i in 1:length(ageRastList)){
+
+    ageRastList[[i]] <- ageStepBack(
+      ageRast    = ageRastList[[i]],
+      yearIn     = sim$ageDataYear,
+      yearOut    = start(sim),
+      distEvents = sim$disturbanceEvents,
+      params     = P(sim)$ageBacktrack
+    ) |> Cache(omitArgs = "distEvents", .cacheExtra = distDigest)
+  }
+
+  # Merge together
+  if (length(ageRastList) > 1){
+    ageRast <- do.call(terra::mosaic, ageRastList)
+  }else ageRast <- ageRastList[[1]]
+  rm(ageRastList)
+
+  # Replace ages in cohortDT
+  sim$cohortDT[, (paste0("age", sim$ageDataYear)) := age]
+  sim$cohortDT[, age := terra::extract(ageRast, sim$cohortDT$pixelIndex)]
+
+  if (P(sim)$saveRasters){
+    outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0("input_age_", start(sim), ".tif"))
+    message("Writing backtracked age raster to path: ", outPath)
+    tryCatch(
+      terra::writeRaster(ageRast, outPath, overwrite = TRUE),
+      error = function(e) warning(e$message, call. = FALSE))
   }
 
   return(invisible(sim))

@@ -13,7 +13,7 @@ test_that("Module: SK with SCANFI 2020 data", {
 
   # Set up project
   projectName <- "SK-SCANFI-2020"
-  times       <- list(start = 2020, end = 2020)
+  times       <- list(start = 2019, end = 2020) # Check age backtracking
 
   simInitInput <- SpaDEStestMuffleOutput(
 
