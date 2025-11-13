@@ -24,7 +24,7 @@ defineModule(sim, list(
   parameters = rbind(
     defineParameter("saveRasters", "logical", FALSE, NA, NA, "Save rasters of inputs aligned to the `masterRaster`"),
     defineParameter("ageBacktrack", "list", NA, NA, NA, "Age backtracking parameters"),
-    defineParameter(".useCache", "character", c(".inputObjects", "init"), NA, NA, "Cache module events")
+    defineParameter(".useCache", "character", "init", NA, NA, "Cache module events")
   ),
   inputObjects = bindrows(
     expectsInput(
