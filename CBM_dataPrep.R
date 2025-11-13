@@ -593,6 +593,7 @@ AgeStepBackward <- function(sim){
       ageRast <- terra::rast(sim$masterRaster, vals = NA)
       ageVals <- sim$cohortDT[pixelIndex %in% splitTbl[split == spl, pixelIndex], .(pixelIndex, age)]
       terra::set.values(ageRast, ageVals$pixelIndex, ageVals$age)
+      ageRast
     })
     rm(splitTbl)
   }
