@@ -425,44 +425,21 @@ PrepCohorts <- function(sim){
 
     cbmDBcon <- DBI::dbConnect(RSQLite::dbDriver("SQLite"), sim$dbPath)
     cbmDB <- list(
-      admin_boundary_tr = data.table::data.table(DBI::dbReadTable(cbmDBcon, "admin_boundary_tr")) |> subset(locale_id == 1),
-      spatial_unit      = data.table::data.table(DBI::dbReadTable(cbmDBcon, "spatial_unit"))
-    )
+      admin_boundary_tr = DBI::dbReadTable(cbmDBcon, "admin_boundary_tr"),
+      spatial_unit      = DBI::dbReadTable(cbmDBcon, "spatial_unit")
+    ) |> lapply(data.table::data.table)
     RSQLite::dbDisconnect(cbmDBcon)
 
+    # Set admin_abbrev & admin_boundary_id
+    cbmDB$admin_boundary_tr <- cbmDB$admin_boundary_tr[locale_id == 1, .(admin_name = name, admin_boundary_id)]
+
     ## Add a row for "Yukon"
-    cbmDB$admin_boundary_tr <- rbind(
-      cbmDB$admin_boundary_tr,
-      cbind(cbmDB$admin_boundary_tr[name == "Yukon Territory", !"name"], name = "Yukon")
-    )
+    cbmDB$admin_boundary_tr <- rbind(cbmDB$admin_boundary_tr, data.frame(
+      admin_name = "Yukon",
+      admin_boundary_id = cbmDB$admin_boundary_tr[admin_name == "Yukon Territory", admin_boundary_id]))
 
-    if (is.character(allPixDT$admin_name)){
-
-      allPixDT <- merge(
-        allPixDT,
-        cbmDB$admin_boundary_tr[, .(admin_boundary_id, admin_name = name)],
-        by = "admin_name", all.x = TRUE)
-
-      if (any(is.na(allPixDT$admin_boundary_id))) stop(
-        "adminLocator name(s) not found in admin_boundary_tr: ",
-        paste(shQuote(unique(subset(allPixDT, is.na(admin_boundary_id))$admin_name)),
-              collapse = ", "),
-        ". Choose from: ",
-        paste(shQuote(sort(cbmDB$admin_boundary_tr$name)),
-              collapse = ", "))
-
-    }else{
-
-      # Input is admin_boundary_id
-      data.table::setnames(allPixDT, "admin_name", "admin_boundary_id")
-      allPixDT <- merge(
-        allPixDT,
-        cbmDB$admin_boundary_tr[, .(admin_boundary_id, admin_name = name)],
-        by = "admin_boundary_id", all.x = TRUE)
-    }
-
-    # Set admin abbreviation
-    allPixDT$admin_abbrev <- c(
+    cbmDB$admin_boundary_tr[, admin_abbrev := sapply(
+      admin_name, switch,
       "Newfoundland"              = "NL",
       "Labrador"                  = "NL",
       "Newfoundland and Labrador" = "NL",
@@ -475,36 +452,37 @@ PrepCohorts <- function(sim){
       "Alberta"                   = "AB",
       "Saskatchewan"              = "SK",
       "British Columbia"          = "BC",
-      "Yukon"                     = "YT",
       "Yukon Territory"           = "YT",
+      "Yukon"                     = "YT",
       "Northwest Territories"     = "NT",
-      "Nunavut"                   = "NU")[allPixDT$admin_name] |> unname()
+      "Nunavut"                   = "NU",
+      NA_character_
+    )]
+
+    if (is.character(allPixDT$admin_name)){
+      allPixDT <- merge(allPixDT, cbmDB$admin_boundary_tr, by = "admin_name", all.x = TRUE)
+
+    }else{
+
+      # Input is admin_boundary_id
+      data.table::setnames(allPixDT, "admin_name", "admin_boundary_id")
+      allPixDT <- merge(allPixDT, cbmDB$admin_boundary_tr, by = "admin_boundary_id", all.x = TRUE)
+    }
 
     # Set CBM-CFS3 spatial_unit_id
     allPixDT <- merge(
       allPixDT,
       cbmDB$spatial_unit[, .(admin_boundary_id, ecozone = eco_boundary_id, spatial_unit_id = id)],
       by = c("admin_boundary_id", "ecozone"), all.x = TRUE)
-    data.table::setkey(allPixDT, pixelIndex)
-
-    if (any(is.na(allPixDT$spatial_unit_id))){
-      noMatch <- unique(allPixDT[
-        is.na(spatial_unit_id) & !is.na(ecozone) & !is.na(admin_name),
-        .(admin_name, ecozone, spatial_unit_id)])
-      data.table::setkey(noMatch, admin_name, ecozone)
-      if (nrow(noMatch) > 0) stop(
-        "spatial_unit_id not found for: ",
-        paste(paste(noMatch$admin_name, "ecozone", noMatch$ecozone), collapse = "; "))
-    }
   }
 
   # Create sim$standDT and sim$cohortDT
+  data.table::setkey(allPixDT, pixelIndex)
   allPixDT[, admin_name := NULL]
 
   sim$standDT <- allPixDT[, .SD, .SDcols = intersect(
     c("pixelIndex", "area", "admin_abbrev", "admin_boundary_id", "ecozone", "spatial_unit_id"),
     names(allPixDT))]
-  data.table::setkey(sim$standDT, pixelIndex)
 
   if (is.null(sim$cohortDT)){
     allPixDT[, cohortID := pixelIndex]
@@ -519,11 +497,24 @@ PrepCohorts <- function(sim){
 
 SubsetCohorts <- function(sim){
 
-  # Subset cohorts to cells where masterRaster is not NA
-  sim$cohortDT <- sim$cohortDT[terra::cells(sim$masterRaster),]
+  # Subset stands and cohorts to cells where masterRaster is not NA
+  sim$standDT  <- sim$standDT[terra::cells(sim$masterRaster),]
+  sim$cohortDT <- sim$cohortDT[sim$standDT$pixelIndex,]
   if (nrow(sim$cohortDT) == 0) stop("all masterRaster values are NA")
 
-  # Remove pixels that are missing key attributes
+  # Check spatial unit IDs
+  for (col in c("admin_abbrev", "ecozone")){
+    if (any(is.na(sim$standDT[[col]]))) stop(col, " NA in ", sum(is.na(sim$standDT[[col]])), " pixels")
+  }
+  if (any(is.na(sim$standDT$spatial_unit_id))){
+    noMatch <- unique(sim$standDT[is.na(spatial_unit_id), .(admin_abbrev, ecozone, spatial_unit_id)])
+    data.table::setkey(noMatch, admin_abbrev, ecozone)
+    if (nrow(noMatch) > 0) stop(
+      "spatial_unit_id not found for: ",
+      paste(paste(noMatch$admin_abbrev, "ecozone", noMatch$ecozone), collapse = "; "))
+  }
+
+  # Remove cohorts that are missing key attributes
   cohortCols <- setdiff(names(sim$cohortDT), c("cohortID", "pixelIndex"))
   if (length(cohortCols) > 0){
 
