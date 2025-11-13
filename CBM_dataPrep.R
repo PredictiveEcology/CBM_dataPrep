@@ -557,50 +557,17 @@ AgeStepBackward <- function(sim){
     return(invisible(sim))
   }
 
-  # Get age raster
-  if (is.null(sim$ageBacktrackSplit)){
+  # Set function to backtrack ages
+  cacheExtra <- list(
+    masterRaster = digest::digest(sim$masterRaster),
+    distEvents   = digest::digest(sim$disturbanceEvents)
+  )
+  ageStepBack <- function(pixelIndex, pixelAges, yearIn, yearOut, params, msgPrefix = NULL){
 
-    # Get age raster
     ageRast <- terra::rast(sim$masterRaster, vals = NA)
-    terra::set.values(ageRast, sim$cohortDT$pixelIndex, sim$cohortDT$age)
-    ageRastList <- list(ageRast)
+    terra::set.values(ageRast, pixelIndex, pixelAges)
 
-  }else{
-
-    # Split age raster by splitting columns
-    splitTbl <- sim$cohortDT
-
-    colMissing <- setdiff(sim$ageBacktrackSplit, names(sim$cohortDT))
-    if (length(colMissing) > 0){
-
-      spsJoin <- lapply(c("userGcMeta", "gcMeta"), function(tbl){
-        if (colMissing %in% names(sim[[tbl]])) unique(
-          sim[[tbl]][, .SD, .SDcols = c(sim$curveID, colMissing)])
-      })
-      spsJoin <- spsJoin[!sapply(spsJoin, is.null)]
-
-      if (length(spsJoin) == 0) stop(
-        "ageBacktrackSplit column(s) not found: ",
-        paste(shQuote(colMissing), collapse = ", "))
-
-      splitTbl <- merge(splitTbl, spsJoin[[1]], by = sim$curveID, all.x = TRUE)
-    }
-
-    splitTbl <- splitTbl[, .SD, .SDcols = c("pixelIndex", sim$ageBacktrackSplit)]
-    splitTbl[, split := .GRP, by = eval(sim$ageBacktrackSplit)]
-
-    ageRastList <- lapply(unique(splitTbl$split), function(spl){
-      ageRast <- terra::rast(sim$masterRaster, vals = NA)
-      ageVals <- sim$cohortDT[pixelIndex %in% splitTbl[split == spl, pixelIndex], .(pixelIndex, age)]
-      terra::set.values(ageRast, ageVals$pixelIndex, ageVals$age)
-    })
-    rm(splitTbl)
-  }
-
-  # Backtrack
-  ageStepBack <- function(ageRast, yearIn, yearOut, distEvents, params){
-
-    withCallingHandlers(
+    ageRast <- withCallingHandlers(
 
       do.call(
         CBMutils::ageStepBackward,
@@ -608,44 +575,91 @@ AgeStepBackward <- function(sim){
           ageRast    = ageRast,
           yearIn     = yearIn,
           yearOut    = yearOut,
-          distEvents = distEvents
+          distEvents = sim$disturbanceEvents
         ),
         if (!identical(P(sim)$ageBacktrack, NA)) params)
       ),
       message = function(m){
-        message("Group ", i, "/", length(ageRastList), ": ", gsub("\\n", "", conditionMessage(m)))
+        message(msgPrefix, gsub("\\n", "", conditionMessage(m)))
         invokeRestart("muffleMessage")
       }
     )
+
+    terra::extract(ageRast, pixelIndex)[,1]
   }
 
-  distDigest <- digest::digest(sim$disturbanceEvents)
-  for (i in 1:length(ageRastList)){
+  # Backtrack ages
+  if (is.null(sim$ageBacktrackSplit)){
 
-    ageRastList[[i]] <- ageStepBack(
-      ageRast    = ageRastList[[i]],
+    sim$cohortDT[, ageBacktrack := ageStepBack(
+      pixelIndex = sim$cohortDT$pixelIndex,
+      pixelAges  = sim$cohortDT$age,
       yearIn     = sim$ageDataYear,
       yearOut    = start(sim),
-      distEvents = sim$disturbanceEvents,
       params     = P(sim)$ageBacktrack
-    ) |> Cache(omitArgs = "distEvents", .cacheExtra = distDigest)
+    ) |>
+      Cache(omitArgs = "distEvents", .cacheExtra = cacheExtra)
+    ]
+
+  }else{
+
+    # Split age data by splitting columns
+    ageTable <- sim$cohortDT[!is.na(age),]
+
+    colMissing <- setdiff(sim$ageBacktrackSplit, names(sim$cohortDT))
+    if (length(colMissing) > 0){
+
+      joinCol <- intersect(c("species", "LandR"), sim$curveID)[1]
+
+      spsJoin <- lapply(c("userGcMeta", "gcMeta"), function(tbl){
+        if (colMissing %in% names(sim[[tbl]])) unique(
+          sim[[tbl]][, .SD, .SDcols = c(joinCol, colMissing)])
+      })
+      spsJoin <- spsJoin[!sapply(spsJoin, is.null)]
+
+      if (length(spsJoin) == 0) stop(
+        "ageBacktrackSplit column(s) not found: ",
+        paste(shQuote(colMissing), collapse = ", "))
+
+      ageTable <- merge(ageTable, spsJoin[[1]], by = joinCol, all.x = TRUE)
+    }
+
+    ageTable[, setdiff(names(ageTable), c("pixelIndex", "age", sim$ageBacktrackSplit)) := NULL]
+    ageTable <- ageTable[rowSums(is.na(ageTable[, .SD, .SDcols = sim$ageBacktrackSplit])) == 0,]
+    ageTable[, split := .GRP, by = eval(sim$ageBacktrackSplit)]
+    ageTable <- split(ageTable, ageTable$split)
+
+    # Backtrack ages
+    for (spl in names(ageTable)){
+
+      ageTable[[spl]][, age := ageStepBack(
+        pixelIndex = ageTable[[spl]]$pixelIndex,
+        pixelAges  = ageTable[[spl]]$age,
+        yearIn     = sim$ageDataYear,
+        yearOut    = start(sim),
+        params     = P(sim)$ageBacktrack,
+        msgPrefix  = paste0("Group ", spl, "/", length(ageTable), ": ")
+      ) |>
+        Cache(omitArgs = "distEvents", .cacheExtra = cacheExtra)
+      ]
+      ageTable[[spl]] <- ageTable[[spl]][, .(pixelIndex, ageBacktrack = age)]
+    }
+
+    ageTable <- data.table::rbindlist(ageTable)
+    sim$cohortDT <- merge(sim$cohortDT, ageTable, "pixelIndex", all.x = TRUE)
+    rm(ageTable)
+
+    data.table::setkey(sim$cohortDT, cohortID)
   }
 
-  # Merge together
-  if (length(ageRastList) > 1){
-    ageRast <- do.call(terra::mosaic, ageRastList)
-  }else ageRast <- ageRastList[[1]]
-  rm(ageRastList)
-
-  # Replace ages in cohortDT
-  sim$cohortDT[, (paste0("age", sim$ageDataYear)) := age]
-  sim$cohortDT[, age := terra::extract(ageRast, sim$cohortDT$pixelIndex)]
+  # Rename ages columns
+  data.table::setnames(sim$cohortDT, c("age", "ageBacktrack"), c(paste0("age", sim$ageDataYear), "age"))
 
   if (P(sim)$saveRasters){
     outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0("input_age_", start(sim), ".tif"))
     message("Writing backtracked age raster to path: ", outPath)
     tryCatch(
-      terra::writeRaster(ageRast, outPath, overwrite = TRUE),
+      CBMutils::writeRasterWithValues(sim$masterRaster, sim$cohortDT$age, outPath, overwrite = TRUE),
       error = function(e) warning(e$message, call. = FALSE))
   }
 
