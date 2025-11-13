@@ -387,6 +387,8 @@ PrepCohorts <- function(sim){
 
         if (colName == "age") sim$ageDataYear <- sourceCBM$year
 
+        rm(sourceCBM)
+
       }else{
 
         message("Extracting spatial input data into column '", colName, "'")
