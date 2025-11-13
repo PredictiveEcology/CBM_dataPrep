@@ -18,7 +18,7 @@ defineModule(sim, list(
   reqdPkgs = list(
     "data.table", "RSQLite", "sf", "terra", "exactextractr", "gstat",
     "reproducible (>=2.1.2)", "digest",
-    "PredictiveEcology/CBMutils@development (>=2.4)",
+    "PredictiveEcology/CBMutils@development (>=2.4.1)",
     "PredictiveEcology/LandR@development"
   ),
   parameters = rbind(
@@ -697,7 +697,6 @@ MatchSpecies <- function(sim){
       sppMatchTable <- CBMutils::sppMatch(
         sim[[gcMetaTable]][[matchCol]],
         sppEquivalencies = sppEquiv,
-        match      = if (matchCol == "LandR") "LandR",
         return     = c("EN_generic_full", "CBM_speciesID", "Broadleaf", "CanfiCode", "NFI", "LandR"),
         otherNames = list(
           "White birch" = "Paper birch"
