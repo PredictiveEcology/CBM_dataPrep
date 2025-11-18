@@ -18,13 +18,13 @@ defineModule(sim, list(
   reqdPkgs = list(
     "data.table", "RSQLite", "sf", "terra", "exactextractr", "gstat",
     "reproducible (>=2.1.2)", "digest", "googledrive",
-    "PredictiveEcology/CBMutils@development (>=2.4.1.9004)",
+    "PredictiveEcology/CBMutils@development (>=2.4.1.9006)",
     "PredictiveEcology/LandR@development"
   ),
   parameters = rbind(
     defineParameter("saveRasters", "logical", FALSE, NA, NA, "Save rasters of inputs aligned to the `masterRaster`"),
     defineParameter("ageBacktrack", "list", NA, NA, NA, "Age backtracking parameters"),
-    defineParameter("parallel.cores", "integer", 1L, NA, NA, "Number of cores to use in parallel processing"),
+    defineParameter("parallel.cores", "integer", NA, NA, NA, "Number of cores to use in parallel processing"),
     defineParameter(".useCache", "character", "init", NA, NA, "Cache module events")
   ),
   inputObjects = bindrows(
@@ -576,7 +576,7 @@ AgeStepBackward <- function(sim){
           yearIn     = yearIn,
           yearOut    = yearOut,
           distEvents = sim$disturbanceEvents,
-          parallel.cores = P(sim)$parallel.cores
+          parallel.cores = if (!is.na(P(sim)$parallel.cores)) P(sim)$parallel.cores
         ),
         if (!identical(P(sim)$ageBacktrack, NA)) params)
       ),
