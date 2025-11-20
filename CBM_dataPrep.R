@@ -410,8 +410,6 @@ PrepCohorts <- function(sim){
           CBMutils::writeRasterWithValues(sim$masterRaster, allPixDT[[colName]], outPath, overwrite = TRUE),
           error = function(e) warning(e$message, call. = FALSE))
       }
-
-      if (is.factor(allPixDT[[colName]])) allPixDT[[colName]] <- as.character(allPixDT[[colName]])
     }
   }
 
@@ -460,7 +458,14 @@ PrepCohorts <- function(sim){
       NA_character_
     )]
 
+    cbmDB$admin_boundary_tr[, admin_name   := factor(admin_name)]
+    cbmDB$admin_boundary_tr[, admin_abbrev := factor(admin_abbrev)]
+
     if (is.character(allPixDT$admin_name)){
+      allPixDT[, admin_name := factor(admin_name, levels = cbmDB$admin_boundary_tr$admin_name)]
+    }
+
+    if (is.factor(allPixDT$admin_name)){
       allPixDT <- merge(allPixDT, cbmDB$admin_boundary_tr, by = "admin_name", all.x = TRUE)
 
     }else{
