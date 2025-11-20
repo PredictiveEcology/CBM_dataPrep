@@ -24,7 +24,8 @@ defineModule(sim, list(
   parameters = rbind(
     defineParameter("saveRasters", "logical", FALSE, NA, NA, "Save rasters of inputs aligned to the `masterRaster`"),
     defineParameter("ageBacktrack", "list", NA, NA, NA, "Age backtracking parameters"),
-    defineParameter("parallel.cores", "integer", NA, NA, NA, "Number of cores to use in parallel processing"),
+    defineParameter("parallel.cores",     "integer", NA,    NA, NA, "Number of cores to use in parallel processing"),
+    defineParameter("parallel.chunkSize", "integer", 25000, NA, NA, "Chunk size to use in parallel processing"),
     defineParameter(".useCache", "character", "init", NA, NA, "Cache module events")
   ),
   inputObjects = bindrows(
@@ -576,7 +577,8 @@ AgeStepBackward <- function(sim){
           yearIn     = yearIn,
           yearOut    = yearOut,
           distEvents = sim$disturbanceEvents,
-          parallel.cores = if (!is.na(P(sim)$parallel.cores)) P(sim)$parallel.cores
+          parallel.cores     = if (!is.na(P(sim)$parallel.cores)) P(sim)$parallel.cores,
+          parallel.chunkSize = P(sim)$parallel.chunkSize
         ),
         if (!identical(P(sim)$ageBacktrack, NA)) params)
       ),
