@@ -369,6 +369,8 @@ PrepCohorts <- function(sim){
       with(subset(CBMutils::CBMsources, sourceID %in% sim$CBMsourceIDs), setNames(sourceID, attr)))
   }
 
+  masterRasterDigest <- digest::digest(sim$masterRaster)
+
   colInputs <- colInputs[!sapply(colInputs, is.null)]
   for (colName in names(colInputs)){
 
@@ -383,7 +385,8 @@ PrepCohorts <- function(sim){
 
         message("Extracting CBM source '", colInputs[[colName]], "' into column '", colName, "'")
 
-        sourceCBM <- CBMutils::CBMsourceExtractToRast(colInputs[[colName]], sim$masterRaster) |> Cache()
+        sourceCBM <- CBMutils::CBMsourceExtractToRast(colInputs[[colName]], sim$masterRaster) |>
+          Cache(omitArgs = "masterRaster", .cacheExtra = masterRasterDigest)
 
         allPixDT[[colName]] <- sourceCBM$extractToRast
 
@@ -401,7 +404,8 @@ PrepCohorts <- function(sim){
             url             = allPixDT[[colName]])
         }
 
-        allPixDT[[colName]] <- CBMutils::extractToRast(colInputs[[colName]], sim$masterRaster) |> Cache()
+        allPixDT[[colName]] <- CBMutils::extractToRast(colInputs[[colName]], sim$masterRaster) |>
+          Cache(omitArgs = "masterRaster", .cacheExtra = masterRasterDigest)
       }
 
       if (P(sim)$saveRasters){
