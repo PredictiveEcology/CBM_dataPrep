@@ -547,6 +547,10 @@ SubsetCohorts <- function(sim){
     rm(hasNA)
   }
 
+  if (!is.null(sim$disturbanceEvents)){
+    sim$disturbanceEvents <- sim$disturbanceEvents[pixelIndex %in% sim$standDT$pixelIndex,]
+  }
+
   return(invisible(sim))
 }
 
