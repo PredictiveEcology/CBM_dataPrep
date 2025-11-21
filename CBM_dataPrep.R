@@ -228,12 +228,6 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
     prepCohorts = {
 
-      sim$masterRasterDigest <- list(
-        crs = terra::crs(sim$masterRaster) |> as.character(),
-        res = terra::res(sim$masterRaster) |> as.numeric(),
-        ext = terra::ext(sim$masterRaster) |> as.list()
-        ) |> lapply(digest::digest)
-
       # Read cohort data
       sim <- PrepCohorts(sim)
 
@@ -265,8 +259,6 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
       # Subset cohorts
       sim <- SubsetCohorts(sim)
-
-      rm("masterRasterDigest", envir = sim)
     },
 
     prepVol2Biomass = {
@@ -334,9 +326,6 @@ PrepMasterRaster <- function(sim){
 
 PrepCohorts <- function(sim){
 
-  masterRasterDigest <- sim$masterRasterDigest
-  if (is.null(masterRasterDigest)) masterRasterDigest <- digest::digest(sim$masterRaster)
-
   # Initiate pixel table
   allPixDT <- data.table::data.table(
     pixelIndex = 1:terra::ncell(sim$masterRaster),
@@ -396,7 +385,7 @@ PrepCohorts <- function(sim){
 
         sourceCBM <- CBMutils::CBMsourceExtractToRast(
           colInputs[[colName]], templateRast = sim$masterRaster
-        ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest)
+        ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
 
         allPixDT[[colName]] <- sourceCBM$extractToRast
 
@@ -416,7 +405,7 @@ PrepCohorts <- function(sim){
 
         allPixDT[[colName]] <- CBMutils::extractToRast(
           colInputs[[colName]], templateRast = sim$masterRaster
-        ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest)
+        ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
       }
 
       if (P(sim)$saveRasters){
@@ -585,7 +574,7 @@ AgeStepBackward <- function(sim){
 
   # Set function to backtrack ages
   cacheExtra <- list(
-    masterRaster = ifelse(!is.null(sim$masterRasterDigest), sim$masterRasterDigest, digest::digest(sim$masterRaster)),
+    masterRaster = masterRasterDigest(sim),
     distEvents   = digest::digest(sim$disturbanceEvents)
   )
   ageStepBack <- function(pixelIndex, pixelAges, yearIn, yearOut, params, msgPrefix = NULL){
@@ -804,9 +793,6 @@ MatchDisturbances <- function(sim){
 
 ReadDisturbances <- function(sim, year = time(sim)){
 
-  masterRasterDigest <- sim$masterRasterDigest
-  if (is.null(masterRasterDigest)) masterRasterDigest <- digest::digest(sim$masterRaster)
-
   # Get disturbances for the year
   distRasts <- lapply(sim$disturbanceRasters, function(d){
     if (as.character(time(sim)) %in% names(d)) d[[as.character(year)]]
@@ -846,7 +832,7 @@ ReadDisturbances <- function(sim, year = time(sim)){
 
     distValues <- CBMutils::extractToRast(
       distRasts[[i]], templateRast = sim$masterRaster
-    ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest)
+    ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
 
     if (P(sim)$saveRasters){
       outPath <- file.path(outputPath(sim), "CBM_dataPrep", sprintf(
@@ -876,9 +862,6 @@ ReadDisturbances <- function(sim, year = time(sim)){
 }
 
 ReadDisturbancesNTEMS <- function(sim){
-
-  masterRasterDigest <- sim$masterRasterDigest
-  if (is.null(masterRasterDigest)) masterRasterDigest <- digest::digest(sim$masterRaster)
 
   if (any(c(1001, 1002) %in% sim$disturbanceMeta$eventID)) stop(
     "NTEMS disturbances reserve eventIDs 1001 and 1002")
@@ -920,7 +903,7 @@ ReadDisturbancesNTEMS <- function(sim){
 
     distValues <- CBMutils::extractToRast(
       sourceTIF, templateRast = sim$masterRaster
-    ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest)
+    ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
 
     if (P(sim)$saveRasters){
       outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0(newDist[i,]$name, '.tif'))
