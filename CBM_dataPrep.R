@@ -229,10 +229,17 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
     prepCohorts = {
 
       # Read cohort data
+      sim <- ReadCohorts(sim)
+
+      # Pull ages for age adjustment
+      ageStep <- "age" %in% names(sim$standDT) && !is.null(sim$ageDataYear) && start(sim) != sim$ageDataYear
+      if (ageStep) sim$ageRast <- terra::rast(sim$masterRaster, vals = sim$standDT$age)
+
+      # Prep cohort tables
       sim <- PrepCohorts(sim)
 
       # Adjust cohort ages
-      if ("age" %in% names(sim$cohortDT) && !is.null(sim$ageDataYear) && start(sim) != sim$ageDataYear){
+      if (ageStep){
 
         # Read disturbances
         distYears <- sort(c(sim$ageDataYear, start(sim)))
@@ -243,6 +250,8 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
         # Step ages forward or backwards
         if (start(sim) > sim$ageDataYear) sim <- AgeStepForward(sim)
         if (start(sim) < sim$ageDataYear) sim <- AgeStepBackward(sim)
+
+        rm("ageRast", envir = sim)
       }
 
       # Convert ages to integer; set spinup age
@@ -256,9 +265,6 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
           sim$cohortDT[ageSpinup < sim$ageSpinupMin, ageSpinup := sim$ageSpinupMin]
         }
       }
-
-      # Subset cohorts
-      sim <- SubsetCohorts(sim)
     },
 
     prepVol2Biomass = {
@@ -324,7 +330,7 @@ PrepMasterRaster <- function(sim){
   return(invisible(sim))
 }
 
-PrepCohorts <- function(sim){
+ReadCohorts <- function(sim){
 
   # Initiate pixel table
   allPixDT <- data.table::data.table(
@@ -491,27 +497,20 @@ PrepCohorts <- function(sim){
   data.table::setkey(allPixDT, pixelIndex)
   allPixDT[, admin_name := NULL]
 
-  sim$standDT <- allPixDT[, .SD, .SDcols = intersect(
-    c("pixelIndex", "area", "admin_abbrev", "admin_boundary_id", "ecozone", "spatial_unit_id"),
-    names(allPixDT))]
-
-  if (is.null(sim$cohortDT)){
-    allPixDT[, cohortID := pixelIndex]
-    sim$cohortDT <- allPixDT[, .SD, .SDcols = intersect(
-      c("cohortID", "pixelIndex", "age", "ageSpinup", setdiff(names(colInputs), names(sim$standDT))),
-      names(allPixDT))]
-    data.table::setkey(sim$cohortDT, cohortID)
-  }
+  sim$standDT <- allPixDT
 
   return(invisible(sim))
 }
 
-SubsetCohorts <- function(sim){
+PrepCohorts <- function(sim){
+
+  tblCols <- list()
+  tblCols$standDT  <- c("area", "admin_abbrev", "admin_boundary_id", "ecozone", "spatial_unit_id")
+  tblCols$cohortDT <- setdiff(names(sim$standDT), c("pixelIndex", tblCols$standDT))
 
   # Subset stands and cohorts to cells where masterRaster is not NA
-  sim$standDT  <- sim$standDT[terra::cells(sim$masterRaster),]
-  sim$cohortDT <- sim$cohortDT[sim$standDT$pixelIndex,]
-  if (nrow(sim$cohortDT) == 0) stop("all masterRaster values are NA")
+  sim$standDT <- sim$standDT[terra::cells(sim$masterRaster),]
+  if (nrow(sim$standDT) == 0) stop("all masterRaster values are NA")
 
   # Check spatial unit IDs
   for (col in c("admin_abbrev", "ecozone")){
@@ -526,26 +525,34 @@ SubsetCohorts <- function(sim){
   }
 
   # Remove cohorts that are missing key attributes
-  cohortCols <- setdiff(names(sim$cohortDT), c("cohortID", "pixelIndex"))
-  if (length(cohortCols) > 0){
+  if (length(tblCols$cohortDT) > 0){
 
-    isNA  <- is.na(sim$cohortDT[, .SD, .SDcols = cohortCols])
+    isNA  <- is.na(sim$standDT[, .SD, .SDcols = tblCols$cohortDT])
     hasNA <- colSums(isNA) > 0
 
     if (any(hasNA)){
 
-      sim$cohortDT <- sim$cohortDT[rowSums(isNA[, hasNA, drop = FALSE]) == 0,]
+      sim$standDT <- sim$standDT[rowSums(isNA[, hasNA, drop = FALSE]) == 0,]
 
       rmMsg <- paste0(
-        round((1 - nrow(sim$cohortDT) / nrow(isNA)) * 100, 2),
+        round((1 - nrow(sim$standDT) / nrow(isNA)) * 100, 2),
         "% of pixels excluded due to NAs in one or more of: ",
         paste(shQuote(names(hasNA)[hasNA]), collapse = ", "))
-      if (nrow(sim$cohortDT) == 0) stop(rmMsg)
+      if (nrow(sim$standDT) == 0) stop(rmMsg)
       message(rmMsg)
     }
     rm(isNA)
     rm(hasNA)
   }
+
+  if (is.null(sim$cohortDT)){
+    sim$cohortDT <- sim$standDT[, .SD, .SDcols = c("pixelIndex", tblCols$cohortDT)]
+    sim$cohortDT[, cohortID := pixelIndex]
+    data.table::setkey(sim$cohortDT, cohortID)
+    data.table::setcolorder(sim$cohortDT)
+  }
+
+  sim$standDT <- sim$standDT[, .SD, .SDcols = c("pixelIndex", tblCols$standDT)]
 
   if (!is.null(sim$disturbanceEvents)){
     sim$disturbanceEvents <- sim$disturbanceEvents[pixelIndex %in% sim$standDT$pixelIndex,]
@@ -565,35 +572,30 @@ AgeStepForward <- function(sim){
 
 AgeStepBackward <- function(sim){
 
-  # Skip process if there are multiple cohorts per pixel
-  if (any(duplicated(sim$cohortDT$pixelIndex))){
-    warning("Cohort age data is from ", sim$ageDataYear, " instead of the simulation start year",
-            call. = FALSE)
-    return(invisible(sim))
-  }
+  # Set cacheable function to backtrack ages
+  ageStepBack <- function(ageRast, yearIn, yearOut, distEvents = NULL, pixelIndex = NULL,
+                          params = NULL, msgPrefix = NULL){
 
-  # Set function to backtrack ages
-  cacheExtra <- list(
-    masterRaster = masterRasterDigest(sim),
-    distEvents   = digest::digest(sim$disturbanceEvents)
-  )
-  ageStepBack <- function(pixelIndex, pixelAges, yearIn, yearOut, params, msgPrefix = NULL){
+    if (!is.null(pixelIndex)){
+      stepRast <- terra::deepcopy(ageRast)
+      terra::set.values(stepRast, setdiff(1:terra::ncell(stepRast), pixelIndex), NA)
+    }else{
+      stepRast   <- ageRast
+      pixelIndex <- pixelIndexAges
+    }
 
-    ageRast <- terra::rast(sim$masterRaster, vals = NA)
-    terra::set.values(ageRast, pixelIndex, pixelAges)
-
-    ageRast <- withCallingHandlers(
+    stepRast <- withCallingHandlers(
       do.call(
-        CBMutils::ageStepBackward,
-        c(list(
-          ageRast    = ageRast,
-          yearIn     = yearIn,
-          yearOut    = yearOut,
-          distEvents = sim$disturbanceEvents,
-          parallel.cores     = if (!is.na(P(sim)$parallel.cores)) P(sim)$parallel.cores,
-          parallel.chunkSize = P(sim)$parallel.chunkSize
-        ),
-        if (!identical(P(sim)$ageBacktrack, NA)) params)
+        CBMutils::ageStepBackward, c(
+          list(
+            ageRast    = stepRast,
+            yearIn     = yearIn,
+            yearOut    = yearOut,
+            distEvents = distEvents,
+            parallel.cores     = if (is.list(P(sim)$ageBacktrack)) P(sim)$ageBacktrack,
+            parallel.chunkSize = P(sim)$parallel.chunkSize
+          ),
+          params)
       ),
       message = function(m){
         message(msgPrefix, gsub("\\n", "", conditionMessage(m)))
@@ -601,81 +603,37 @@ AgeStepBackward <- function(sim){
       }
     )
 
-    terra::extract(ageRast, pixelIndex)[,1]
+    data.table::data.table(
+      pixelIndex = pixelIndex,
+      age = terra::extract(stepRast, pixelIndex)[,1]
+    )
   }
 
   # Backtrack ages
-  if (is.null(sim$ageBacktrackSplit)){
+  sim$cohortDT[, age := NULL]
+  pixelIndexAges <- terra::cells(sim$ageRast)
+  newAges <- ageStepBack(
+    ageRast    = sim$ageRast,
+    yearIn     = sim$ageDataYear,
+    yearOut    = start(sim),
+    distEvents = sim$disturbanceEvents,
+    params     = if (is.list(P(sim)$ageBacktrack)) P(sim)$ageBacktrack
+  ) |> Cache()
+  data.table::setkey(newAges, pixelIndex)
 
-    sim$cohortDT[, ageBacktrack := ageStepBack(
-      pixelIndex = sim$cohortDT$pixelIndex,
-      pixelAges  = sim$cohortDT$age,
-      yearIn     = sim$ageDataYear,
-      yearOut    = start(sim),
-      params     = P(sim)$ageBacktrack
-    ) |>
-      Cache(omitArgs = "distEvents", .cacheExtra = cacheExtra)
-    ]
-
-  }else{
-
-    # Split age data by splitting columns
-    ageTable <- sim$cohortDT[!is.na(age),]
-
-    colMissing <- setdiff(sim$ageBacktrackSplit, names(sim$cohortDT))
-    if (length(colMissing) > 0){
-
-      joinCol <- intersect(c("species", "LandR"), sim$curveID)[1]
-
-      spsJoin <- lapply(c("userGcMeta", "gcMeta"), function(tbl){
-        if (colMissing %in% names(sim[[tbl]])) unique(
-          sim[[tbl]][, .SD, .SDcols = c(joinCol, colMissing)])
-      })
-      spsJoin <- spsJoin[!sapply(spsJoin, is.null)]
-
-      if (length(spsJoin) == 0) stop(
-        "ageBacktrackSplit column(s) not found: ",
-        paste(shQuote(colMissing), collapse = ", "))
-
-      ageTable <- merge(ageTable, spsJoin[[1]], by = joinCol, all.x = TRUE)
-    }
-
-    ageTable[, setdiff(names(ageTable), c("pixelIndex", "age", sim$ageBacktrackSplit)) := NULL]
-    ageTable <- ageTable[rowSums(is.na(ageTable[, .SD, .SDcols = sim$ageBacktrackSplit])) == 0,]
-    ageTable[, split := .GRP, by = eval(sim$ageBacktrackSplit)]
-    ageTable <- split(ageTable, ageTable$split)
-
-    # Backtrack ages
-    for (spl in names(ageTable)){
-
-      ageTable[[spl]][, age := ageStepBack(
-        pixelIndex = ageTable[[spl]]$pixelIndex,
-        pixelAges  = ageTable[[spl]]$age,
-        yearIn     = sim$ageDataYear,
-        yearOut    = start(sim),
-        params     = P(sim)$ageBacktrack,
-        msgPrefix  = paste0("Group ", spl, "/", length(ageTable), ": ")
-      ) |>
-        Cache(omitArgs = "distEvents", .cacheExtra = cacheExtra)
-      ]
-      ageTable[[spl]] <- ageTable[[spl]][, .(pixelIndex, ageBacktrack = age)]
-    }
-
-    ageTable <- data.table::rbindlist(ageTable)
-    sim$cohortDT <- merge(sim$cohortDT, ageTable, "pixelIndex", all.x = TRUE)
-    rm(ageTable)
-
-    data.table::setkey(sim$cohortDT, cohortID)
-  }
-
-  # Rename ages columns
-  data.table::setnames(sim$cohortDT, c("age", "ageBacktrack"), c(paste0("age", sim$ageDataYear), "age"))
+  sim$cohortDT <- data.table::merge.data.table(
+    sim$cohortDT, newAges, by = "pixelIndex", all.x = TRUE)
+  data.table::setkey(sim$cohortDT, cohortID)
+  data.table::setcolorder(sim$cohortDT)
 
   if (P(sim)$saveRasters){
+
+    terra::set.values(sim$ageRast, newAges$pixelIndex, newAges$age)
+
     outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0("input_age_", start(sim), ".tif"))
     message("Writing backtracked age raster to path: ", outPath)
     tryCatch(
-      CBMutils::writeRasterWithValues(sim$masterRaster, sim$cohortDT$age, outPath, overwrite = TRUE),
+      terra::writeRaster(sim$ageRast, outPath, overwrite = TRUE),
       error = function(e) warning(e$message, call. = FALSE))
   }
 
