@@ -512,18 +512,6 @@ PrepCohorts <- function(sim){
   sim$standDT <- sim$standDT[terra::cells(sim$masterRaster),]
   if (nrow(sim$standDT) == 0) stop("all masterRaster values are NA")
 
-  # Check spatial unit IDs
-  for (col in c("admin_abbrev", "ecozone")){
-    if (any(is.na(sim$standDT[[col]]))) stop(col, " NA in ", sum(is.na(sim$standDT[[col]])), " pixels")
-  }
-  if (any(is.na(sim$standDT$spatial_unit_id))){
-    noMatch <- unique(sim$standDT[is.na(spatial_unit_id), .(admin_abbrev, ecozone, spatial_unit_id)])
-    data.table::setkey(noMatch, admin_abbrev, ecozone)
-    if (nrow(noMatch) > 0) stop(
-      "spatial_unit_id not found for: ",
-      paste(paste(noMatch$admin_abbrev, "ecozone", noMatch$ecozone), collapse = "; "))
-  }
-
   # Remove cohorts that are missing key attributes
   if (length(tblCols$cohortDT) > 0){
 
@@ -543,6 +531,18 @@ PrepCohorts <- function(sim){
     }
     rm(isNA)
     rm(hasNA)
+  }
+
+  # Check spatial unit IDs
+  for (col in c("admin_abbrev", "ecozone")){
+    if (any(is.na(sim$standDT[[col]]))) stop(col, " NA in ", sum(is.na(sim$standDT[[col]])), " pixels")
+  }
+  if (any(is.na(sim$standDT$spatial_unit_id))){
+    noMatch <- unique(sim$standDT[is.na(spatial_unit_id), .(admin_abbrev, ecozone, spatial_unit_id)])
+    data.table::setkey(noMatch, admin_abbrev, ecozone)
+    if (nrow(noMatch) > 0) stop(
+      "spatial_unit_id not found for: ",
+      paste(paste(noMatch$admin_abbrev, "ecozone", noMatch$ecozone), collapse = "; "))
   }
 
   if (is.null(sim$cohortDT)){
