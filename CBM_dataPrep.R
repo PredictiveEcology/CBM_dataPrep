@@ -684,11 +684,11 @@ PrepVol2Biomass <- function(sim){
   if (!all(sim$curveID %in% names(sim$cohortDT))) stop("cohortDT does not contain all columns in `curveID`")
 
   # Define unique growth curves with spatial_unit_id
-  userGcSPU <- cbind(sim$standDT[sim$cohortDT$pixelIndex, .(spatial_unit_id)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
-
-  sim$userGcSPU <- unique(userGcSPU)
+  userGcSPU <- cbind(sim$standDT[, .(spatial_unit_id)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
 
   sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcSPU))]
+
+  sim$userGcSPU <- unique(userGcSPU)
 
   return(invisible(sim))
 }
