@@ -594,10 +594,6 @@ PrepCohorts <- function(sim){
 
   sim$standDT <- sim$standDT[, .SD, .SDcols = c("pixelIndex", tblCols$standDT)]
 
-  if (!is.null(sim$disturbanceEvents)){
-    sim$disturbanceEvents <- sim$disturbanceEvents[pixelIndex %in% sim$standDT$pixelIndex,]
-  }
-
   return(invisible(sim))
 }
 
