@@ -661,7 +661,7 @@ AgeStepBackward <- function(sim){
   data.table::setkey(sim$cohortDT, cohortID)
   data.table::setcolorder(sim$cohortDT)
 
-  if (P(sim)$saveRasters){
+  if (TRUE | P(sim)$saveRasters){
 
     ageRast <- terra::rast(sim$masterRaster)
     terra::set.values(ageRast, newAges$pixelIndex, newAges$age)
