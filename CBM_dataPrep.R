@@ -252,6 +252,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
         if (!is.integer(sim$cohortDT$age)){
           sim$cohortDT[, age := as.integer(round(age))]
+          sim$cohortDT[age < 0, age := 0]
         }
         if (!is.null(sim$ageSpinupMin)){
           sim$cohortDT[, ageSpinup := age]
