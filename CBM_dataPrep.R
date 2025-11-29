@@ -668,6 +668,7 @@ AgeStepBackward <- function(sim){
 
     outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0("input_age_", start(sim), ".tif"))
     message("Writing backtracked age raster to path: ", outPath)
+    dir.create(dirname(outPath), recursive = TRUE, showWarnings = FALSE)
     tryCatch(
       terra::writeRaster(ageRast, outPath, overwrite = TRUE),
       error = function(e) warning(e$message, call. = FALSE))
