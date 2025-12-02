@@ -251,7 +251,7 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
             spsJoin <- lapply(c("userGcMeta", "gcMeta"), function(tbl){
               if (colMissing %in% names(sim[[tbl]])){
-                joinCol <- intersect(names(sim$standDT), names(sim[[tbl]]))
+                joinCol <- intersect(c("species", "LandR"), intersect(names(sim$standDT), names(sim[[tbl]])))
                 unique(sim[[tbl]][, .SD, .SDcols = c(joinCol, colMissing)])
               }
             })
