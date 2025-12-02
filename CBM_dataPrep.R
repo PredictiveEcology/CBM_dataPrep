@@ -261,7 +261,9 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
               "ageBacktrackSplit column(s) not found: ",
               paste(shQuote(colMissing), collapse = ", "))
 
-            ageTable <- merge(ageTable, spsJoin[[1]], by = intersect(names(sim$standDT), names(spsJoin[[1]])), all.x = TRUE)
+            joinCol <- intersect(c("species", "LandR"), intersect(names(sim$standDT), names(spsJoin[[1]])))
+            ageTable[[joinCol]] <- as.character(ageTable[[joinCol]])
+            ageTable <- merge(ageTable, spsJoin[[1]], by = joinCol, all.x = TRUE)
           }
 
           ageTable[, setdiff(names(ageTable), c("pixelIndex", "age", sim$ageBacktrackSplit)) := NULL]
