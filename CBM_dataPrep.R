@@ -18,7 +18,7 @@ defineModule(sim, list(
   reqdPkgs = list(
     "data.table", "RSQLite", "sf", "terra", "exactextractr", "gstat",
     "reproducible (>=2.1.2)", "digest", "googledrive",
-    "PredictiveEcology/CBMutils@development (>=2.4.1.9010)",
+    "PredictiveEcology/CBMutils@development (>=2.4.2.9000)",
     "PredictiveEcology/LandR@development"
   ),
   parameters = rbind(
@@ -171,20 +171,20 @@ defineModule(sim, list(
       desc = "Growth curve metadata with additional species attributes.",
       columns = list(
         species_id    = "CBM-CFS3 species ID",
-        sw_hw         = "'sw' or 'hw'",
         LandR         = "LandR species code",
+        sw_hw         = "'sw' or 'hw'",
         canfi_species = "CanFI species codes",
-        genus         = "NFI species genus"
+        genus         = "Species genus"
       )),
     createsOutput(
       objectName = "gcMeta", objectClass = "data.table",
       desc = "Growth curve metadata with additional species attributes.",
       columns = list(
         species_id    = "CBM-CFS3 species ID",
-        sw_hw         = "'sw' or 'hw'",
         LandR         = "LandR species code",
+        sw_hw         = "'sw' or 'hw'",
         canfi_species = "CanFI species codes",
-        genus         = "NFI species genus"
+        genus         = "Species genus"
       )),
     createsOutput(
       objectName = "disturbanceMeta", objectClass = "data.table",
@@ -699,10 +699,10 @@ MatchSpecies <- function(sim){
       sppEquiv, data.frame(
         EN_generic_full = "Balsam poplar, largetooth aspen and eastern cottonwood",
         CBM_speciesID = 177,
+        LandR         = "POPU_BAL",
         Broadleaf     = TRUE,
         CanfiCode     = 1211,
-        NFI           = "POPU_",
-        LandR         = "POPU_BAL"
+        Genus         = "POPU"
       )), fill = TRUE)
   }
 
@@ -721,16 +721,16 @@ MatchSpecies <- function(sim){
       sppMatchTable <- CBMutils::sppMatch(
         sim[[gcMetaTable]][[matchCol]],
         sppEquivalencies = sppEquiv,
-        return     = c("EN_generic_full", "CBM_speciesID", "Broadleaf", "CanfiCode", "NFI", "LandR"),
+        return     = c("EN_generic_full", "CBM_speciesID", "LandR", "Broadleaf", "CanfiCode", "Genus"),
         otherNames = list(
           "White birch" = "Paper birch"
         ))[, .(
           species       = EN_generic_full,
           species_id    = CBM_speciesID,
+          LandR,
           sw_hw         = data.table::fifelse(Broadleaf, "hw", "sw"),
           canfi_species = CanfiCode,
-          genus         = sapply(strsplit(NFI, "_"), `[`, 1),
-          LandR
+          genus         = Genus
         )]
 
       sim[[gcMetaTable]] <- cbind(
