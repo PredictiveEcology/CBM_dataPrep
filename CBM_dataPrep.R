@@ -704,7 +704,7 @@ MatchSpecies <- function(sim){
         LandR         = "POPU_BAL",
         Broadleaf     = TRUE,
         CanfiCode     = 1211,
-        Genus         = "POPU"
+        Latin_full    = "POPU" # For genus
       )), fill = TRUE)
   }
 
