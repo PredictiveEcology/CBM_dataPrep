@@ -791,7 +791,7 @@ ReadDisturbances <- function(sim, year = time(sim)){
 
   # Get disturbances for the year
   distRasts <- lapply(sim$disturbanceRasters, function(d){
-    if (as.character(time(sim)) %in% names(d)) d[[as.character(year)]]
+    if (as.character(year) %in% names(d)) d[[as.character(year)]]
   })
 
   # Retrieve disturbances from simList
@@ -852,7 +852,8 @@ ReadDisturbances <- function(sim, year = time(sim)){
     )
   })
 
-  sim$disturbanceEvents <- data.table::rbindlist(c(list(sim$disturbanceEvents), newEvents))
+  sim$disturbanceEvents <- data.table::rbindlist(c(list(sim$disturbanceEvents), newEvents)) |>
+    unique()
 
   return(invisible(sim))
 }
