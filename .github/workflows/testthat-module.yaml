@@ -65,6 +65,12 @@ jobs:
 
       - uses: PredictiveEcology/actions/install-SpaDES@v0.2
 
+      # Temporary: install reproducible@development
+      - name: Install reproducible@development
+        run: |
+          remotes::install_github("PredictiveEcology/reproducible@development")
+        shell: Rscript {0}
+
       - name: Run tests
         run: |
           googledrive::drive_auth(path = Sys.getenv("GOOGLE_AUTH"))
