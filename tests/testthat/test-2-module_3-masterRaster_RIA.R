@@ -63,6 +63,8 @@ test_that("Module: RIA", {
   }
   expect_identical(data.table::key(simTest$standDT), "pixelIndex")
 
+  expect_false("admin_name" %in% names(simTest$standDT))
+
   expect_equal(nrow(simTest$standDT), 160000)
   expect_equal(simTest$standDT$pixelIndex, 1:160000)
   expect_in(simTest$standDT$area,              250*250)

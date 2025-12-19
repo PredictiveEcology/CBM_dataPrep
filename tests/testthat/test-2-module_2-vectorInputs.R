@@ -29,8 +29,8 @@ test_that("Module: vector inputs", {
 
       # Set study area
       masterRaster = terra::rast(
-        crs        = "EPSG:32610",
-        extent     = c(xmin = 475595 - 50, xmax = 475595 + 50, ymin = 5361627 - 50, ymax = 5361627 + 50),
+        crs        = "EPSG:3979",
+        extent     = c(xmin = 2437830 - 50, xmax = 2437830 + 50, ymin = 126710 - 50, ymax = 126710 + 50),
         resolution = 1,
         vals       = 1
       ),
