@@ -17,7 +17,8 @@ defineModule(sim, list(
   documentation = list("CBM_dataPrep.Rmd"),
   reqdPkgs = list(
     "data.table", "RSQLite", "sf", "terra", "exactextractr", "gstat",
-    "reproducible (>=2.1.2)", "digest", "googledrive",
+    "reproducible (>=2.1.2)", "digest",
+    "googledrive", "httr2", "rvest",
     "PredictiveEcology/CBMutils@development (>=2.4.2.9000)",
     "PredictiveEcology/LandR@development"
   ),
