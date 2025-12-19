@@ -66,11 +66,13 @@ jobs:
       #- uses: PredictiveEcology/actions/install-SpaDES@v0.2
 
       # Temporary: install SpaDES development branches
-      - name: Install reproducible@development and SpaDES.core@development
+      - name: Install SpaDES development branches
         run: |
-          remotes::install_github("PredictiveEcology/reproducible@development")
-          remotes::install_github("PredictiveEcology/SpaDES.core@development")
-          remotes::install_github("PredictiveEcology/SpaDES.project@development")
+          Require::setLinuxBinaryRepo()
+          Require::Require("PredictiveEcology/quickPlot@development",      require = FALSE)
+          Require::Require("PredictiveEcology/reproducible@development",   require = FALSE)
+          Require::Require("PredictiveEcology/SpaDES.core@development",    require = FALSE)
+          Require::Require("PredictiveEcology/SpaDES.project@development", require = FALSE)
         shell: Rscript {0}
 
       - name: Run tests
