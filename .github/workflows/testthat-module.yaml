@@ -63,12 +63,14 @@ jobs:
         with:
           GitTag: 'development'
 
-      - uses: PredictiveEcology/actions/install-SpaDES@v0.2
+      #- uses: PredictiveEcology/actions/install-SpaDES@v0.2
 
-      # Temporary: install reproducible@development
-      - name: Install reproducible@development
+      # Temporary: install SpaDES development branches
+      - name: Install reproducible@development and SpaDES.core@development
         run: |
           remotes::install_github("PredictiveEcology/reproducible@development")
+          remotes::install_github("PredictiveEcology/SpaDES.core@development")
+          remotes::install_github("PredictiveEcology/SpaDES.project@development")
         shell: Rscript {0}
 
       - name: Run tests
