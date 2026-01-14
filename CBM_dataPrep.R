@@ -952,7 +952,7 @@ ReadDisturbancesNTEMS <- function(sim){
   # Growth curve ID
   if (!suppliedElsewhere("curveID", sim)){
 
-    if (suppliedElsewhere("gcIndexLocator")){
+    if (suppliedElsewhere("gcIndexLocator", sim)){
       sim$curveID <- "curveID"
 
     }else{
