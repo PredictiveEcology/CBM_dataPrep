@@ -127,7 +127,7 @@ defineModule(sim, list(
         sourceObjectName    = "Optional. Name of the object in the `simList` to retrieve the `disturbanceRasters` from annually."
       )),
     expectsInput(
-      objectName = "dbPath", objectClass = "character",
+      objectName = "cbm_defaults_db", objectClass = "character",
       sourceURL = "https://raw.githubusercontent.com/cat-cfs/libcbm_py/main/libcbm/resources/cbm_defaults_db/cbm_defaults_v1.2.8340.362.db",
       desc = "Path to the CBM-CBM3 defaults database")
   ),
@@ -478,7 +478,7 @@ ReadCohorts <- function(sim){
   # Set CBM-CFS3 spatial_unit_id
   if ("admin_name" %in% names(allPixDT)){
 
-    cbmDBcon <- DBI::dbConnect(RSQLite::dbDriver("SQLite"), sim$dbPath)
+    cbmDBcon <- DBI::dbConnect(RSQLite::dbDriver("SQLite"), sim$cbm_defaults_db)
     cbmDB <- list(
       admin_boundary_tr = DBI::dbReadTable(cbmDBcon, "admin_boundary_tr"),
       spatial_unit      = DBI::dbReadTable(cbmDBcon, "spatial_unit")
@@ -760,7 +760,7 @@ MatchDisturbances <- function(sim){
 
   if (!is.null(sim$disturbanceMeta) && !"disturbance_type_id" %in% names(sim$disturbanceMeta)){
 
-    if (is.null(sim$dbPath)) stop("'dbPath' input required to set disturbanceMeta 'disturbance_type_id'")
+    if (is.null(sim$cbm_defaults_db)) stop("'cbm_defaults_db' input required to set disturbanceMeta 'disturbance_type_id'")
 
     if (!inherits(sim$disturbanceMeta, "data.table")){
       sim$disturbanceMeta <- tryCatch(
@@ -781,7 +781,7 @@ MatchDisturbances <- function(sim){
     sim$disturbanceMeta <- cbind(
       sim$disturbanceMeta, CBMutils::distMatch(
         sim$disturbanceMeta$nameUser,
-        dbPath = sim$dbPath,
+        dbPath = sim$cbm_defaults_db,
         ask    = askUser
       ) |> Cache()
     )
@@ -928,15 +928,15 @@ ReadDisturbancesNTEMS <- function(sim){
 .inputObjects <- function(sim){
 
   # CBM-CFS3 defaults database
-  if (!suppliedElsewhere("dbPath", sim)){
+  if (!suppliedElsewhere("cbm_defaults_db", sim)){
 
-    sim$dbPath <- file.path(inputPath(sim), "cbm_defaults_v1.2.8340.362.db")
+    sim$cbm_defaults_db <- file.path(inputPath(sim), "cbm_defaults_v1.2.8340.362.db")
 
-    if (!file.exists(sim$dbPath)) prepInputs(
+    if (!file.exists(sim$cbm_defaults_db)) prepInputs(
       destinationPath = inputPath(sim),
-      url         = extractURL("dbPath"),
-      targetFile  = basename(sim$dbPath),
-      dlFun       = download.file(extractURL("dbPath"), sim$dbPath, mode = "wb", quiet = TRUE),
+      url         = extractURL("cbm_defaults_db"),
+      targetFile  = basename(sim$cbm_defaults_db),
+      dlFun       = download.file(extractURL("cbm_defaults_db"), sim$cbm_defaults_db, mode = "wb", quiet = TRUE),
       fun         = NA
     )
   }
