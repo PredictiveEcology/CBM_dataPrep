@@ -19,7 +19,7 @@ defineModule(sim, list(
     "data.table", "RSQLite", "sf", "terra", "exactextractr", "gstat",
     "reproducible (>=2.1.2)", "digest",
     "googledrive", "httr2", "rvest",
-    "PredictiveEcology/CBMutils@development (>=2.4.2.9000)",
+    "PredictiveEcology/CBMutils@development (>=2.5.1)",
     "PredictiveEcology/LandR@development"
   ),
   parameters = rbind(
@@ -791,8 +791,8 @@ MatchDisturbances <- function(sim){
     sim$disturbanceMeta <- cbind(
       sim$disturbanceMeta, CBMutils::distMatch(
         sim$disturbanceMeta$nameUser,
-        dbPath = sim$cbm_defaults_db,
-        ask    = askUser
+        cbm_defaults_db = sim$cbm_defaults_db,
+        ask = askUser
       ) |> Cache()
     )
   }
