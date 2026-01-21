@@ -165,8 +165,11 @@ defineModule(sim, list(
         "Column(s) uniquely defining each growth curve in `cohortDT` and `userGcMeta`.",
         "Defaults to the nmes of the columns created by `cohortLocators` and `CBMsourceIDs`.")),
     createsOutput(
+      objectName = "userGcLocations", objectClass = "data.table",
+      desc = "Table of combinations of growth curve, admin location, and ecozone ID in `cohortDT`."),
+    createsOutput(
       objectName = "userGcSPU", objectClass = "data.table",
-      desc = "Table of growth curve and spatial unit combinations `cohortDT`."),
+      desc = "DEPRECIATING: Table of growth curve and spatial unit combinations `cohortDT`."),
     createsOutput(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = "Growth curve metadata with additional species attributes.",
@@ -685,7 +688,14 @@ PrepVol2Biomass <- function(sim){
 
   if (!all(sim$curveID %in% names(sim$cohortDT))) stop("cohortDT does not contain all columns in `curveID`")
 
-  # Define unique growth curves with spatial_unit_id
+  # Define locations of existing growth curves
+  userGcLocations <- cbind(sim$standDT[, .(juris_id = admin_abbrev, ecozone)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
+
+  sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcLocations))]
+
+  sim$userGcLocations <- unique(userGcLocations)
+
+  # DEPRECIATING: Define unique growth curves with spatial_unit_id
   userGcSPU <- cbind(sim$standDT[, .(spatial_unit_id)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
 
   sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcSPU))]
