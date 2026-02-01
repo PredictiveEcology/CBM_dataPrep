@@ -128,7 +128,7 @@ defineModule(sim, list(
       )),
     expectsInput(
       objectName = "cbm_defaults_db", objectClass = "character",
-      sourceURL = "https://raw.githubusercontent.com/cat-cfs/libcbm_py/main/libcbm/resources/cbm_defaults_db/cbm_defaults_v1.2.8340.362.db",
+      sourceURL = "https://raw.githubusercontent.com/cat-cfs/libcbm_py/main/libcbm/resources/cbm_defaults_db/cbm_defaults_v1.2.9300.391.db",
       desc = "Path to the CBM-CBM3 defaults database")
   ),
   outputObjects = bindrows(
@@ -937,10 +937,10 @@ ReadDisturbancesNTEMS <- function(sim){
 
 .inputObjects <- function(sim){
 
-  # CBM-CFS3 defaults database
+  # CBM-CFS3 defaults SQLite database
   if (!suppliedElsewhere("cbm_defaults_db", sim)){
 
-    sim$cbm_defaults_db <- file.path(inputPath(sim), "cbm_defaults_v1.2.8340.362.db")
+    sim$cbm_defaults_db <- file.path(inputPath(sim), basename(extractURL("cbm_defaults_db")))
 
     if (!file.exists(sim$cbm_defaults_db)) prepInputs(
       destinationPath = inputPath(sim),
