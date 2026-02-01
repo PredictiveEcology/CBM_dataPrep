@@ -427,6 +427,7 @@ ReadCohorts <- function(sim){
     if (isValue(colInputs[[colName]])){
 
       # Set column as a single value
+      if (is.character(colInputs[[colName]])) colInputs[[colName]] <- factor(colInputs[[colName]])
       allPixDT[[colName]] <- colInputs[[colName]]
 
     }else{
@@ -467,8 +468,6 @@ ReadCohorts <- function(sim){
           CBMutils::writeRasterWithValues(sim$masterRaster, allPixDT[[colName]], outPath, overwrite = TRUE),
           error = function(e) warning(e$message, call. = FALSE))
       }
-
-      if (is.factor(allPixDT[[colName]])) allPixDT[[colName]] <- as.character(allPixDT[[colName]])
     }
   }
 
