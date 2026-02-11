@@ -159,7 +159,7 @@ defineModule(sim, list(
         "Year that the ages in `ageLocator` represent.",
         "If `ageLocator` is a `CBMutils::CBMsources` sourceID this will be automatically set.",
         "Otherwise, if omitted, ages are assumed to represent the simulation start year.")),
-    expectsInput(
+    createsOutput(
       objectName = "curveID", objectClass = "character",
       desc = paste(
         "Column(s) uniquely defining each growth curve in `cohortDT` and `userGcMeta`.",
