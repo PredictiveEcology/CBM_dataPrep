@@ -765,6 +765,7 @@ MatchDisturbances <- function(sim){
       url = sim$disturbanceMeta,
       fun = data.table::fread
     )
+    data.table::setkey(sim$disturbanceMeta, eventID)
   }
 
   if (!is.null(sim$disturbanceMeta) && !"disturbance_type_id" %in% names(sim$disturbanceMeta)){
@@ -794,6 +795,7 @@ MatchDisturbances <- function(sim){
         ask = askUser
       ) |> Cache()
     )
+    data.table::setkey(sim$disturbanceMeta, eventID)
   }
 
   return(invisible(sim))
@@ -892,6 +894,7 @@ ReadDisturbancesNTEMS <- function(sim){
 
   sim$disturbanceMeta <- data.table::rbindlist(list(
     sim$disturbanceMeta, newDist[, 1:3]), fill = TRUE)
+  data.table::setkey(sim$disturbanceMeta, eventID)
 
   newEvents <- lapply(1:nrow(newDist), function(i){
 
