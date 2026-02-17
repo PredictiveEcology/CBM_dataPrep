@@ -136,12 +136,11 @@ defineModule(sim, list(
       objectName = "standDT", objectClass = "data.table",
       desc = "Table of stand attributes.",
       columns = c(
-        pixelIndex         = "`masterRaster` cell index",
-        area               = "`masterRaster` cell area in meters",
-        admin_abbrev       = "Canada administrative abbreviation extracted from `adminLocator`",
-        admin_boundary_id  = "CBM-CFS3 administrative boundary ID",
-        ecozone            = "Canada ecozone ID extracted from `ecoLocator`",
-        spatial_unit_id    = "CBM-CFS3 spatial unit ID"
+        pixelIndex   = "`masterRaster` cell index",
+        area         = "`masterRaster` cell area in meters",
+        admin_abbrev = "Canada administrative boundary abbreviation",
+        admin_name   = "Canada administrative boundary name extracted from `adminLocator`",
+        eco_id       = "Canada ecozone ID extracted from `ecoLocator`"
       )),
     createsOutput(
       objectName = "cohortDT", objectClass = "data.table",
@@ -167,9 +166,6 @@ defineModule(sim, list(
     createsOutput(
       objectName = "userGcLocations", objectClass = "data.table",
       desc = "Table of combinations of growth curve, admin location, and ecozone ID in `cohortDT`."),
-    createsOutput(
-      objectName = "userGcSPU", objectClass = "data.table",
-      desc = "DEPRECIATING: Table of growth curve and spatial unit combinations `cohortDT`."),
     createsOutput(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = "Growth curve metadata with additional species attributes.",
@@ -402,7 +398,7 @@ ReadCohorts <- function(sim){
   # Set cohort attributes from input sources
   colInputs <- list(
     admin_name = sim$adminLocator,
-    ecozone    = sim$ecoLocator,
+    eco_id     = sim$ecoLocator,
     age        = sim$ageLocator,
     curveID    = sim$gcIndexLocator
   )
@@ -484,26 +480,10 @@ ReadCohorts <- function(sim){
     sim$ageDataYear <- as.numeric(start(sim))
   }
 
-  # Set CBM-CFS3 spatial_unit_id
+  # Set admin_abbrev
   if ("admin_name" %in% names(allPixDT)){
 
-    cbmDBcon <- DBI::dbConnect(RSQLite::dbDriver("SQLite"), sim$cbm_defaults_db)
-    cbmDB <- list(
-      admin_boundary_tr = DBI::dbReadTable(cbmDBcon, "admin_boundary_tr"),
-      spatial_unit      = DBI::dbReadTable(cbmDBcon, "spatial_unit")
-    ) |> lapply(data.table::data.table)
-    RSQLite::dbDisconnect(cbmDBcon)
-
-    # Set admin_abbrev & admin_boundary_id
-    cbmDB$admin_boundary_tr <- cbmDB$admin_boundary_tr[locale_id == 1, .(admin_name = name, admin_boundary_id)]
-
-    ## Add a row for "Yukon"
-    cbmDB$admin_boundary_tr <- rbind(cbmDB$admin_boundary_tr, data.frame(
-      admin_name = "Yukon",
-      admin_boundary_id = cbmDB$admin_boundary_tr[admin_name == "Yukon Territory", admin_boundary_id]))
-
-    cbmDB$admin_boundary_tr[, admin_abbrev := sapply(
-      admin_name, switch,
+    adminAbbrevs <- c(
       "Newfoundland"              = "NL",
       "Labrador"                  = "NL",
       "Newfoundland and Labrador" = "NL",
@@ -519,38 +499,15 @@ ReadCohorts <- function(sim){
       "Yukon Territory"           = "YT",
       "Yukon"                     = "YT",
       "Northwest Territories"     = "NT",
-      "Nunavut"                   = "NU",
-      NA_character_
-    )]
+      "Nunavut"                   = "NU"
+    )
 
-    cbmDB$admin_boundary_tr[, admin_name   := factor(admin_name)]
-    cbmDB$admin_boundary_tr[, admin_abbrev := factor(admin_abbrev)]
-
-    if (is.character(allPixDT$admin_name)){
-      allPixDT[, admin_name := factor(admin_name, levels = cbmDB$admin_boundary_tr$admin_name)]
-    }
-
-    if (is.factor(allPixDT$admin_name)){
-      allPixDT <- merge(allPixDT, cbmDB$admin_boundary_tr, by = "admin_name", all.x = TRUE)
-
-    }else{
-
-      # Input is admin_boundary_id
-      data.table::setnames(allPixDT, "admin_name", "admin_boundary_id")
-      allPixDT <- merge(allPixDT, cbmDB$admin_boundary_tr, by = "admin_boundary_id", all.x = TRUE)
-    }
-
-    # Set CBM-CFS3 spatial_unit_id
-    allPixDT <- merge(
-      allPixDT,
-      cbmDB$spatial_unit[, .(admin_boundary_id, ecozone = eco_boundary_id, spatial_unit_id = id)],
-      by = c("admin_boundary_id", "ecozone"), all.x = TRUE)
+    allPixDT[, admin_abbrev := factor(
+      adminAbbrevs[as.character(admin_name)], levels = unique(adminAbbrevs))]
   }
 
-  # Create sim$standDT and sim$cohortDT
+  # Return
   data.table::setkey(allPixDT, pixelIndex)
-  allPixDT[, admin_name := NULL]
-
   sim$standDT <- allPixDT
 
   return(invisible(sim))
@@ -559,7 +516,7 @@ ReadCohorts <- function(sim){
 PrepCohorts <- function(sim){
 
   tblCols <- list()
-  tblCols$standDT  <- c("area", "admin_abbrev", "admin_boundary_id", "ecozone", "spatial_unit_id")
+  tblCols$standDT  <- c("area", "admin_abbrev", "admin_name", "eco_id")
   tblCols$cohortDT <- setdiff(names(sim$standDT), c("pixelIndex", tblCols$standDT))
 
   # Subset stands and cohorts to cells where masterRaster is not NA
@@ -587,17 +544,7 @@ PrepCohorts <- function(sim){
     rm(hasNA)
   }
 
-  # Check spatial unit IDs
-  for (col in c("admin_abbrev", "ecozone")){
-    if (any(is.na(sim$standDT[[col]]))) stop(col, " NA in ", sum(is.na(sim$standDT[[col]])), " pixels")
-  }
-  if (any(is.na(sim$standDT$spatial_unit_id))){
-    noMatch <- unique(sim$standDT[is.na(spatial_unit_id), .(admin_abbrev, ecozone, spatial_unit_id)])
-    data.table::setkey(noMatch, admin_abbrev, ecozone)
-    if (nrow(noMatch) > 0) stop(
-      "spatial_unit_id not found for: ",
-      paste(paste(noMatch$admin_abbrev, "ecozone", noMatch$ecozone), collapse = "; "))
-  }
+
 
   if (is.null(sim$cohortDT)){
     sim$cohortDT <- sim$standDT[, .SD, .SDcols = c("pixelIndex", tblCols$cohortDT)]
@@ -695,18 +642,11 @@ PrepVol2Biomass <- function(sim){
   if (!all(sim$curveID %in% names(sim$cohortDT))) stop("cohortDT does not contain all columns in `curveID`")
 
   # Define locations of existing growth curves
-  userGcLocations <- cbind(sim$standDT[, .(admin_abbrev, eco_id = ecozone)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
+  userGcLocations <- cbind(sim$standDT[, .(admin_abbrev, eco_id)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
 
   sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcLocations))]
 
   sim$userGcLocations <- unique(userGcLocations)
-
-  # DEPRECIATING: Define unique growth curves with spatial_unit_id
-  userGcSPU <- cbind(sim$standDT[, .(spatial_unit_id)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
-
-  sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcSPU))]
-
-  sim$userGcSPU <- unique(userGcSPU)
 
   return(invisible(sim))
 }

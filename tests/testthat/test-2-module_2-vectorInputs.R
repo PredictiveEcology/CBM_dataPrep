@@ -65,7 +65,7 @@ test_that("Module: vector inputs", {
   expect_true(!is.null(simTest$standDT))
   expect_true(inherits(simTest$standDT, "data.table"))
 
-  for (colName in c("pixelIndex", "area", "admin_abbrev", "admin_boundary_id", "ecozone", "spatial_unit_id")){
+  for (colName in c("pixelIndex", "area", "admin_abbrev", "admin_name", "eco_id")){
     expect_true(colName %in% names(simTest$standDT))
     expect_true(all(!is.na(simTest$standDT[[colName]])))
   }
@@ -74,11 +74,11 @@ test_that("Module: vector inputs", {
   expect_equal(nrow(simTest$standDT), 10000)
   expect_equal(simTest$standDT$pixelIndex, 1:10000)
   expect_in(simTest$standDT$area,              1)
-  #expect_in(simTest$standDT$admin_name,        "Nova Scotia") # Column excluded from result
   expect_in(simTest$standDT$admin_abbrev,      "NS")
-  expect_in(simTest$standDT$admin_boundary_id, 3)
-  expect_in(simTest$standDT$ecozone,           7)
-  expect_in(simTest$standDT$spatial_unit_id,   5)
+  expect_in(simTest$standDT$admin_name,        "Nova Scotia")
+  #expect_in(simTest$standDT$admin_boundary_id, 3) # Excluded from result
+  expect_in(simTest$standDT$eco_id,            7)
+  #expect_in(simTest$standDT$spatial_unit_id,   5) # Excluded from result
 
 
   ## Check output 'cohortDT' ----

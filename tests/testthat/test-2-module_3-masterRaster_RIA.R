@@ -57,22 +57,20 @@ test_that("Module: RIA", {
   expect_true(!is.null(simTest$standDT))
   expect_true(inherits(simTest$standDT, "data.table"))
 
-  for (colName in c("pixelIndex", "area", "admin_abbrev", "admin_boundary_id", "ecozone", "spatial_unit_id")){
+  for (colName in c("pixelIndex", "area", "admin_abbrev", "admin_name", "eco_id")){
     expect_true(colName %in% names(simTest$standDT))
     expect_true(all(!is.na(simTest$standDT[[colName]])))
   }
   expect_identical(data.table::key(simTest$standDT), "pixelIndex")
 
-  expect_false("admin_name" %in% names(simTest$standDT))
-
   expect_equal(nrow(simTest$standDT), 160000)
   expect_equal(simTest$standDT$pixelIndex, 1:160000)
   expect_in(simTest$standDT$area,              250*250)
-  #expect_in(simTest$standDT$admin_name,        "British Columbia") # Column excluded from result
   expect_in(simTest$standDT$admin_abbrev,      "BC")
-  expect_in(simTest$standDT$admin_boundary_id, 11)
-  expect_in(simTest$standDT$ecozone,           c(4, 9, 12, 14))
-  expect_in(simTest$standDT$spatial_unit_id,   c(38, 39, 40, 42))
+  expect_in(simTest$standDT$admin_name,        "British Columbia")
+  #expect_in(simTest$standDT$admin_boundary_id, 11) # Excluded from result
+  expect_in(simTest$standDT$eco_id,            c(4, 9, 12, 14))
+  #expect_in(simTest$standDT$spatial_unit_id,   c(38, 39, 40, 42)) # Excluded from result
 
 
   ## Check output 'cohortDT' ----
