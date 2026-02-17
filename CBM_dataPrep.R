@@ -695,7 +695,7 @@ PrepVol2Biomass <- function(sim){
   if (!all(sim$curveID %in% names(sim$cohortDT))) stop("cohortDT does not contain all columns in `curveID`")
 
   # Define locations of existing growth curves
-  userGcLocations <- cbind(sim$standDT[, .(juris_id = admin_abbrev, ecozone)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
+  userGcLocations <- cbind(sim$standDT[, .(admin_abbrev, eco_id = ecozone)], sim$cohortDT[, .SD, .SDcols = sim$curveID])
 
   sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcLocations))]
 
