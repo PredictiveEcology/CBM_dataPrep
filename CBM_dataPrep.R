@@ -385,12 +385,18 @@ ReadCohorts <- function(sim){
 
   # Set cell area
   if (!terra::is.lonlat(sim$masterRaster)){
-    allPixDT$area <- prod(terra::res(sim$masterRaster) * terra::linearUnits(sim$masterRaster))
+    data.table::set(
+      allPixDT, j = "area",
+      value = prod(terra::res(sim$masterRaster) * terra::linearUnits(sim$masterRaster))
+    )
 
   }else{
     masterRasterCellSize <- terra::cellSize(
       sim$masterRaster, unit = "m", mask = FALSE, transform = FALSE) |> Cache()
-    allPixDT$area <- terra::values(masterRasterCellSize, mat = FALSE) |> Cache()
+    data.table::set(
+      allPixDT, j = "area",
+      value = terra::values(masterRasterCellSize, mat = FALSE) |> Cache()
+    )
   }
 
   # Set cohort attributes from input sources
@@ -428,7 +434,7 @@ ReadCohorts <- function(sim){
 
       # Set column as a single value
       if (is.character(colInputs[[colName]])) colInputs[[colName]] <- factor(colInputs[[colName]])
-      allPixDT[[colName]] <- colInputs[[colName]]
+      data.table::set(allPixDT, j = colName, value = colInputs[[colName]])
 
     }else{
 
@@ -440,7 +446,7 @@ ReadCohorts <- function(sim){
           colInputs[[colName]], templateRast = sim$masterRaster
         ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
 
-        allPixDT[[colName]] <- sourceCBM$extractToRast
+        data.table::set(allPixDT, j = colName, value = sourceCBM$extractToRast)
 
         if (colName == "age") sim$ageDataYear <- sourceCBM$year
 
@@ -450,15 +456,16 @@ ReadCohorts <- function(sim){
 
         message("Extracting spatial input data into column '", colName, "'")
 
-        if (isURL(allPixDT[[colName]])){
-          allPixDT[[colName]] <- reproducible::prepInputs(
+        if (isURL(colInputs[[colName]])){
+          colInputs[[colName]] <- reproducible::prepInputs(
             destinationPath = inputPath(sim),
-            url             = allPixDT[[colName]])
+            url             = colInputs[[colName]])
         }
 
-        allPixDT[[colName]] <- CBMutils::extractToRast(
-          colInputs[[colName]], templateRast = sim$masterRaster
-        ) |> Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
+        data.table::set(allPixDT, j = colName, value = CBMutils::extractToRast(
+          colInputs[[colName]], templateRast = sim$masterRaster) |>
+            Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
+        )
       }
 
       if (P(sim)$saveRasters){
