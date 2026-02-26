@@ -120,7 +120,7 @@ defineModule(sim, list(
       desc = "Table defining the disturbance event types",
       columns = c(
         eventID             = "Event type ID",
-        disturbance_type_id = "CBM-CFS3 disturbance type ID. If not provided, the user will be prompted to choose IDs.",
+        disturbance_type_id = "CBM disturbance type ID. If not provided, the user will be prompted to choose IDs.",
         name                = "Disturbance name (e.g. 'Wildfire'). Required only if 'disturbance_type_id' absent.",
         sourceValue         = "Optional. Value in `disturbanceRasters` to include as events",
         sourceDelay         = "Optional. Delay (in years) of when the `disturbanceRasters` will take effect",
@@ -170,7 +170,7 @@ defineModule(sim, list(
       objectName = "userGcMeta", objectClass = "data.table",
       desc = "Growth curve metadata with additional species attributes.",
       columns = list(
-        species_id    = "CBM-CFS3 species ID",
+        species_id    = "CBM species ID",
         LandR         = "LandR species code",
         sw_hw         = "'sw' or 'hw'",
         canfi_species = "CanFI species codes",
@@ -180,7 +180,7 @@ defineModule(sim, list(
       objectName = "gcMeta", objectClass = "data.table",
       desc = "Growth curve metadata with additional species attributes.",
       columns = list(
-        species_id    = "CBM-CFS3 species ID",
+        species_id    = "CBM species ID",
         LandR         = "LandR species code",
         sw_hw         = "'sw' or 'hw'",
         canfi_species = "CanFI species codes",
@@ -726,10 +726,10 @@ MatchDisturbances <- function(sim){
           "'disturbanceMeta' could not be converted to data.table: ", e$message, call. = FALSE))
     }
 
-    # Match user disturbances with CBM-CFS3 disturbance type IDs
+    # Match user disturbances with CBM disturbance type IDs
     askUser <- interactive() & !identical(Sys.getenv("TESTTHAT"), "true")
     if (askUser) message(
-      "Prompting user to match input disturbances with CBM-CFS3 disturbances:")
+      "Prompting user to match input disturbances with CBM disturbances:")
 
     data.table::setnames(
       sim$disturbanceMeta, c("name", "description"), c("nameUser", "descUser"),
@@ -886,7 +886,7 @@ ReadDisturbancesNTEMS <- function(sim){
 
 .inputObjects <- function(sim){
 
-  # CBM-CFS3 defaults SQLite database
+  # CBM defaults SQLite database
   if (!suppliedElsewhere("cbm_defaults_db", sim)){
 
     sim$cbm_defaults_db <- file.path(inputPath(sim), basename(extractURL("cbm_defaults_db")))
