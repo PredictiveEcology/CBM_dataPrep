@@ -96,6 +96,18 @@ defineModule(sim, list(
         "Growth curve metadata. An input to CBM_core.",
         "If provided, species names or LandR codes will be matched with known species get additional attributes.")),
     expectsInput(
+      objectName = "disturbanceMeta", objectClass = "data.table",
+      desc = "Table defining disturbance event types",
+      columns = c(
+        eventID               = "Event type ID",
+        name                  = "Disturbance name (e.g. 'Wildfire').",
+        disturbance_type_name = "Optional. CBM disturbance type name.",
+        disturbance_type_id   = "Optional. CBM disturbance type ID.",
+        sourceValue           = "Optional. Value in `disturbanceRasters` to include as events",
+        sourceDelay           = "Optional. Delay (in years) of when the `disturbanceRasters` will take effect",
+        sourceObjectName      = "Optional. Name of the object in the `simList` to retrieve the `disturbanceRasters` from annually."
+      )),
+    expectsInput(
       objectName = "disturbanceRasters", objectClass = "list",
       desc = paste(
         "Set of spatial data sources containing locations of disturbance events for each year.",
@@ -114,17 +126,6 @@ defineModule(sim, list(
           "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
           "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
           "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
-      )),
-    expectsInput(
-      objectName = "disturbanceMeta", objectClass = "data.table",
-      desc = "Table defining the disturbance event types",
-      columns = c(
-        eventID             = "Event type ID",
-        disturbance_type_id = "CBM disturbance type ID. If not provided, the user will be prompted to choose IDs.",
-        name                = "Disturbance name (e.g. 'Wildfire'). Required only if 'disturbance_type_id' absent.",
-        sourceValue         = "Optional. Value in `disturbanceRasters` to include as events",
-        sourceDelay         = "Optional. Delay (in years) of when the `disturbanceRasters` will take effect",
-        sourceObjectName    = "Optional. Name of the object in the `simList` to retrieve the `disturbanceRasters` from annually."
       )),
     expectsInput(
       objectName = "cbm_defaults_db", objectClass = "character",
@@ -707,6 +708,8 @@ MatchSpecies <- function(sim){
 
 MatchDisturbances <- function(sim){
 
+  if (is.null(sim$disturbanceMeta)) return(invisible(sim))
+
   if (isURL(sim$disturbanceMeta)){
     sim$disturbanceMeta <- prepInputs(
       destinationPath = inputPath(sim),
@@ -716,32 +719,29 @@ MatchDisturbances <- function(sim){
     data.table::setkey(sim$disturbanceMeta, eventID)
   }
 
-  if (!is.null(sim$disturbanceMeta) && !"disturbance_type_id" %in% names(sim$disturbanceMeta)){
+  if (!inherits(sim$disturbanceMeta, "data.table")){
+    sim$disturbanceMeta <- tryCatch(
+      data.table::as.data.table(sim$disturbanceMeta),
+      error = function(e) stop(
+        "disturbanceMeta could not be converted to data.table: ", e$message, call. = FALSE))
+  }
 
-    if (is.null(sim$cbm_defaults_db)) stop("'cbm_defaults_db' input required to set disturbanceMeta 'disturbance_type_id'")
+  # Match user disturbances with CBM disturbance types
+  if (!any(c("disturbance_type_name", "disturbance_type_id") %in% names(sim$disturbanceMeta))){
 
-    if (!inherits(sim$disturbanceMeta, "data.table")){
-      sim$disturbanceMeta <- tryCatch(
-        data.table::as.data.table(sim$disturbanceMeta),
-        error = function(e) stop(
-          "'disturbanceMeta' could not be converted to data.table: ", e$message, call. = FALSE))
-    }
+    if (!"name" %in% names(sim$disturbanceMeta)) stop("disturbanceMeta requires 'name' column to set disturbance types")
+    if (is.null(sim$cbm_defaults_db)) stop("cbm_defaults_db required to set disturbanceMeta disturbance types")
 
-    # Match user disturbances with CBM disturbance type IDs
     askUser <- interactive() & !identical(Sys.getenv("TESTTHAT"), "true")
-    if (askUser) message(
-      "Prompting user to match input disturbances with CBM disturbances:")
-
-    data.table::setnames(
-      sim$disturbanceMeta, c("name", "description"), c("nameUser", "descUser"),
-      skip_absent = TRUE)
+    if (askUser) message("Prompting user to match input disturbances with CBM disturbances:")
+    distMatch <- CBMutils::distMatch(
+      sim$disturbanceMeta$name,
+      cbm_defaults_db = sim$cbm_defaults_db,
+      ask = askUser
+    ) |> Cache()
 
     sim$disturbanceMeta <- cbind(
-      sim$disturbanceMeta, CBMutils::distMatch(
-        sim$disturbanceMeta$nameUser,
-        cbm_defaults_db = sim$cbm_defaults_db,
-        ask = askUser
-      ) |> Cache()
+      sim$disturbanceMeta, distMatch[, .(disturbance_type_name = name, disturbance_type_id, description)]
     )
     data.table::setkey(sim$disturbanceMeta, eventID)
   }
@@ -785,8 +785,8 @@ ReadDisturbances <- function(sim, year = time(sim)){
     with(distMeta, message(
       year, ": ",
       "Reading disturbances for eventID = ", eventID,
-      if (exists("disturbance_type_id")) paste("; CBM type ID =", disturbance_type_id),
-      if (exists("name"))                paste("; name =", shQuote(name))))
+      if (exists("disturbance_type_id"))   paste("; CBM type ID =", disturbance_type_id),
+      if (exists("disturbance_type_name")) paste("; name =", shQuote(disturbance_type_name))))
 
     distValues <- CBMutils::extractToRast(
       distRasts[[i]], templateRast = sim$masterRaster
@@ -827,16 +827,18 @@ ReadDisturbancesNTEMS <- function(sim){
 
   newDist <- rbind(
     data.table(
-      eventID             = 1001L,
-      disturbance_type_id = 1, # Wildfire
-      name                = "NTEMS CA Forest Fires 1985-2020",
-      url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip"
+      eventID               = 1001L,
+      disturbance_type_name = "Wildfire",
+      disturbance_type_id   = 1,
+      name                  = "NTEMS CA Forest Fires 1985-2020",
+      url                   = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Fire_1985-2020.zip"
     ),
     data.table(
-      eventID             = 1002L,
-      disturbance_type_id = 204, # Clearcut harvesting without salvage
-      name                = "NTEMS CA Forest Harvest 1985-2020",
-      url                 = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
+      eventID               = 1002L,
+      disturbance_type_name = "Clearcut harvesting without salvage",
+      disturbance_type_id   = 204, # Clearcut harvesting without salvage
+      name                  = "NTEMS CA Forest Harvest 1985-2020",
+      url                   = "https://opendata.nfis.org/downloads/forest_change/CA_Forest_Harvest_1985-2020.zip"
     )
   )
 
