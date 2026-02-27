@@ -646,7 +646,7 @@ PrepVol2Biomass <- function(sim){
   userGcLocations <- cbind(sim$standDT[, .(admin_name, admin_abbrev, eco_id)],
                            sim$cohortDT[, .SD, .SDcols = sim$curveID])
 
-  sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcLocations))]
+  sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcLocations[, -c("admin_name")]))]
 
   sim$userGcLocations <- unique(userGcLocations)
 
