@@ -150,8 +150,7 @@ defineModule(sim, list(
         cohortID   = "`masterRaster` cell index",
         pixelIndex = "`masterRaster` cell index",
         age        = "Cohort ages extracted from `ageLocator`",
-        ageSpinup  = "Cohort ages raised to >= `ageSpinupMin`",
-        gcids      = "Growth curve ID unique to every spatial unit and `curveID`"
+        ageSpinup  = "Cohort ages raised to >= `ageSpinupMin`"
       )),
     createsOutput(
       objectName = "ageDataYear", objectClass = "numeric",
@@ -645,8 +644,6 @@ PrepVol2Biomass <- function(sim){
   # Define locations of existing growth curves
   userGcLocations <- cbind(sim$standDT[, .(admin_name, admin_abbrev, eco_id)],
                            sim$cohortDT[, .SD, .SDcols = sim$curveID])
-
-  sim$cohortDT[, gcids := factor(CBMutils::gcidsCreate(userGcLocations[, -c("admin_name")]))]
 
   sim$userGcLocations <- unique(userGcLocations)
 
