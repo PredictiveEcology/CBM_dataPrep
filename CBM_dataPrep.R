@@ -19,8 +19,8 @@ defineModule(sim, list(
     "data.table", "RSQLite", "sf", "terra", "exactextractr", "gstat",
     "reproducible (>=2.1.2)", "digest",
     "googledrive", "httr2", "rvest",
-    "PredictiveEcology/CBMutils@development (>=2.4.2.9000)",
-    "PredictiveEcology/LandR@development"
+    "PredictiveEcology/CBMutils@v2.5.1",
+    "PredictiveEcology/LandR@6216911c254362ffa06e63345bb2a1b7b505d999 (<=1.1.5.9089)"
   ),
   parameters = rbind(
     defineParameter("saveRasters", "logical", FALSE, NA, NA, "Save rasters of inputs aligned to the `masterRaster`"),
