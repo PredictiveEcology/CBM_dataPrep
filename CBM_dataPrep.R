@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Susan",  "Murray",    email = "murray.e.susan@gmail.com",           role = c("ctb"))
   ),
   childModules = character(0),
-  version = list(SpaDES.core = "1.0.2", CBM_dataPrep = "1.0.0"),
+  version = list(CBM_dataPrep = "1.0.0"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
