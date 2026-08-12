@@ -49,7 +49,7 @@ This module reads in various spatially explicit Canada-wide rasters that are pro
 | disturbanceMeta | Data table | Table defining the disturbance event types | User provided, for SK: [Google Drive](https://drive.google.com/file/d/12z25mHl7McRm1ee7V7dgtSHdLP8-QEZp) |
 
 ## Module functioning
-[CBM_dataPrep](https://github.com/PredictiveEcology/CBM_dataPrep.git) has 5 events; `prepCohorts`, `prepVol2Biomass`, `MatchSpecies`, and `MatchDisturbances`, which are run only once, and the `readDisturbances` event, which is repeated for each simulation year.
+[CBM_dataPrep](https://github.com/PredictiveEcology/CBM_dataPrep.git) has 5 events; `prepCohorts`, `prepVol2Biomass`, `matchSpecies`, and `matchDisturbances`, which are run only once, and the `readDisturbances` event, which is repeated for each simulation year.
 
 ### `prepCohorts`
 This event reads in the study area's spatial inputs from [CBM_dataPrep_SK](https://github.com/PredictiveEcology/CBM_dataPrep_SK.git) and processes them into two tables, `cohortDT` and `standDT` to be used in [CBM_core](https://github.com/PredictiveEcology/CBM_core). 
@@ -57,10 +57,10 @@ This event reads in the study area's spatial inputs from [CBM_dataPrep_SK](https
 ### `prepVol2Biomass`
 This short event defines the unique growth curves that will be used int he [CBM_vol2Biomass](https://github.com/PredictiveEcology/CBM_vol2Biomass) module based on [spatial units](https://predictiveecology.github.io/spadesCBM/lexicon.html#ecozone-vs-spatial-unit).
 
-### `MatchSpecies`
+### `matchSpecies`
 Here the module matches species in user provided data tables to get additional attributes, such as CBM-specific species IDs needed in later modules. 
 
-### `MatchDisturbance`
+### `matchDisturbance`
 This event matches disturbances event types to its appropriate CBM-specific disturbance type ID. 
 
 ### `readDisturbances`
