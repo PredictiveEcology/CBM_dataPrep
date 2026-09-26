@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Susan",  "Murray",    email = "murray.e.susan@gmail.com",           role = c("ctb"))
   ),
   childModules = character(0),
-  version = list(CBM_dataPrep = "1.0.0.9000"),
+  version = list(CBM_dataPrep = "1.0.0.9001"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -508,7 +508,39 @@ PrepCohorts <- function(sim){
     rm(hasNA)
   }
 
+  # Remove pixels whose (admin_name, eco_id) pair has no CBM spatial unit
+  if (all(c("admin_name", "eco_id") %in% names(sim$standDT)) && nrow(sim$standDT) > 0){
 
+    cbmDBcon <- RSQLite::dbConnect(RSQLite::dbDriver("SQLite"), sim$cbm_defaults_db)
+    spatialUnits <- data.table::as.data.table(RSQLite::dbReadTable(cbmDBcon, "spatial_unit")) |>
+      merge(data.table::as.data.table(RSQLite::dbReadTable(cbmDBcon, "admin_boundary_tr"))[
+        locale_id == 1, .(admin_boundary_id, admin_name = name)],
+        by = "admin_boundary_id")
+    RSQLite::dbDisconnect(cbmDBcon)
+    data.table::setnames(spatialUnits, "eco_boundary_id", "eco_id")
+    spatialUnits <- unique(spatialUnits[, paste(admin_name, eco_id)])
+
+    noSPU <- !sim$standDT[, paste(admin_name, eco_id)] %in% spatialUnits
+
+    if (any(noSPU)){
+
+      rmPairs <- unique(sim$standDT[noSPU, .(admin_name, eco_id)])
+      rmMsg <- paste0(
+        round(sum(noSPU) / nrow(sim$standDT) * 100, 2),
+        "% of pixels excluded: no CBM spatial unit for (admin_name, eco_id) pair(s): ",
+        paste0("(", rmPairs$admin_name, ", ", rmPairs$eco_id, ")", collapse = ", "))
+
+      if (!is.null(sim$cohortDT)){
+        sim$cohortDT <- sim$cohortDT[!pixelIndex %in% sim$standDT[noSPU, pixelIndex],]
+      }
+
+      sim$standDT <- sim$standDT[!noSPU,]
+
+      if (nrow(sim$standDT) == 0) stop(rmMsg)
+      message(rmMsg)
+    }
+    rm(noSPU, spatialUnits)
+  }
 
   if (is.null(sim$cohortDT)){
     sim$cohortDT <- sim$standDT[, .SD, .SDcols = c("pixelIndex", tblCols$cohortDT)]
