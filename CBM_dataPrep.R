@@ -734,7 +734,9 @@ ReadDisturbances <- function(sim, year = time(sim)){
 
     distValues <- CBMutils::extractToRast(
       distRasts[[i]], templateRast = sim$masterRaster
-    ) |> reproducible::Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
+    ) |> reproducible::Cache(
+      useCache = !isFALSE(is.na(distMeta$sourceObjectName)),
+      omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
 
     if (P(sim)$saveRasters){
       outPath <- file.path(outputPath(sim), "CBM_dataPrep", sprintf("distEvents-%s_%s-%s.tif", eventIDs[[i]], year, i))
