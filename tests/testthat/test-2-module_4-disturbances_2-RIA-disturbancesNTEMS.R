@@ -53,9 +53,6 @@ test_that("Module: RIA with NTEMS disturbances", {
 
   expect_equal(nrow(simTest$disturbanceMeta), 2)
 
-  # Check that disturbances have been matched correctly
-  expect_equal(simTest$disturbanceMeta$disturbance_type_id, c(1, 204))
-
 
   ## Check output 'disturbanceEvents' ----
 
