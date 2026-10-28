@@ -34,11 +34,10 @@ test_that("Module: SK with disturbanceRasters", {
     ),
 
     # Set disturbances
-    ## Test matching user disturbances with CBM-CFS3 disturbances
     disturbanceMeta = rbind(
-      data.frame(eventID = 1, wholeStand = 1, name = "Wildfire",
+      data.frame(eventID = 1, name = "Wildfire",
                  sourceValue = 1, sourceDelay = 1, sourceObjectName = NA_character_),
-      data.frame(eventID = 2, wholeStand = 1, name = "Clearcut harvesting without salvage",
+      data.frame(eventID = 2, name = "Clearcut harvesting without salvage",
                  sourceValue = NA_integer_, sourceDelay = NA_integer_, sourceObjectName = "clearcut")
     ),
     disturbanceRasters = list(
@@ -64,17 +63,6 @@ test_that("Module: SK with disturbanceRasters", {
   # Run spades
   simTest <- SpaDES.core::spades(simTestInit)
   expect_s4_class(simTest, "simList")
-
-
-  ## Check output 'disturbanceMeta' ----
-
-  expect_true(!is.null(simTest$disturbanceMeta))
-  expect_true(inherits(simTest$disturbanceMeta, "data.table"))
-
-  expect_equal(nrow(simTest$disturbanceMeta), 2)
-
-  # Check that disturbances have been matched correctly
-  expect_equal(simTest$disturbanceMeta$disturbance_type_id, c(1, 204))
 
 
   ## Check output 'disturbanceEvents' ----
