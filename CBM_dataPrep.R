@@ -455,7 +455,7 @@ ReadCohorts <- function(sim){
         outPath <- file.path(outputPath(sim), "CBM_dataPrep", paste0("input_", colName, ".tif"))
         message("Writing aligned raster to path: ", outPath)
         tryCatch(
-          CBMutils::writeRasterWithValues(sim$masterRaster, allPixDT[[colName]], outPath, overwrite = TRUE),
+          CBMutils::writeRasterWithValues(sim$masterRaster, outPath, values = allPixDT[[colName]], overwrite = TRUE),
           error = function(e) warning(e$message, call. = FALSE))
       }
     }
