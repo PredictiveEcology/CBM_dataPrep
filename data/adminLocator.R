@@ -1,6 +1,6 @@
 
 admins <- reproducible::prepInputs(
-  destinationPath = "C:/Users/sumurray/Documents/Github/spadesCBM/inputs/StatCan",
+  destinationPath = tempdir(),
   url = "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000a21a_e.zip",
   targetFile = "lpr_000a21a_e.shp",
   alsoExtract = "similar",
