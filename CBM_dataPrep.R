@@ -344,10 +344,14 @@ PrepMasterRaster <- function(sim){
   if (is.character(sim$adminLocator) && length(sim$adminLocator) == 1 &&
       !terra::global(sim$masterRaster, "anyNA")[1, 1]){
 
-    adminBoundaries <- CBMutils::CBMsourcePrepInputs("StatCan-admin")$source
-    if (sim$adminLocator %in% adminBoundaries$admin){
-
-      adminMask <- subset(adminBoundaries, admin == sim$adminLocator) |>
+    adminBoundaries <- reproducible::prepInputs(
+      destinationPath = dataPath(sim),
+      archive         = file.path(dataPath(sim), "adminLocator.zip"),
+      targetFile      = "adminLocator.shp",
+      fun             = sf::st_read(targetFile, quiet = TRUE)
+    )
+    if (sim$adminLocator %in% adminBoundaries$name){
+      adminMask <- subset(adminBoundaries, name == sim$adminLocator) |>
         sf::st_segmentize(10000) |>
         sf::st_transform(sf::st_crs(sim$masterRaster))
       sim$masterRaster <- terra::mask(sim$masterRaster, adminMask, touches = FALSE)
