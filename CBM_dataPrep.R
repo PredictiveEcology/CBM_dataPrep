@@ -36,14 +36,12 @@ defineModule(sim, list(
     expectsInput(
       objectName  = "adminLocator",
       objectClass = "sf|SpatRaster|sourceID|URL|character",
-      sourceID    = "StatCan-admin",
       desc = paste(
         "Canada administrative boundary name(s).",
         "This can be provided as a spatial object, a `CBMutils::CBMsources` sourceID, a URL, or a single value for all cohorts.")),
     expectsInput(
       objectName  = "ecoLocator",
       objectClass = "sf|SpatRaster|sourceID|URL|numeric",
-      sourceID    = "CanSIS-ecozone",
       desc = paste(
         "Canada ecozone ID(s).",
         "This can be provided as a spatial object, a `CBMutils::CBMsources` sourceID, a URL, or a single value for all cohorts.")),
@@ -498,8 +496,6 @@ PrepCohorts <- function(sim){
     rm(hasNA)
   }
 
-
-
   if (is.null(sim$cohortDT)){
     sim$cohortDT <- sim$standDT[, .SD, .SDcols = c("pixelIndex", tblCols$cohortDT)]
     sim$cohortDT[, cohortID := pixelIndex]
@@ -781,12 +777,22 @@ ReadDisturbancesNTEMS <- function(sim){
 .inputObjects <- function(sim){
 
   # Canada admin boundaries & ecozones
-  defaultSourceIDs <- with(
-    list(x = inputObjects(sim, "CBM_dataPrep")),
-    sapply(split(x$sourceID, x$objectName), unlist))
-
-  if (!suppliedElsewhere("adminLocator", sim)) sim$adminLocator <- defaultSourceIDs[["adminLocator"]]
-  if (!suppliedElsewhere("ecoLocator",   sim)) sim$ecoLocator   <- defaultSourceIDs[["ecoLocator"]]
+  if (!suppliedElsewhere("adminLocator", sim)){
+    sim$adminLocator <- reproducible::prepInputs(
+      destinationPath = dataPath(sim),
+      archive         = file.path(dataPath(sim), "adminLocator.zip"),
+      targetFile      = "adminLocator.shp",
+      fun             = sf::st_read(targetFile, quiet = TRUE)
+    )
+  }
+  if (!suppliedElsewhere("ecoLocator", sim)){
+    sim$ecoLocator <- reproducible::prepInputs(
+      destinationPath = dataPath(sim),
+      archive         = file.path(dataPath(sim), "ecoLocator.zip"),
+      targetFile      = "ecoLocator.shp",
+      fun             = sf::st_read(targetFile, quiet = TRUE)
+    )
+  }
 
   # Growth curve ID
   if (!suppliedElsewhere("curveID", sim)){
