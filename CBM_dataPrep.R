@@ -648,6 +648,8 @@ ReadDisturbances <- function(sim, year = time(sim)){
   })
 
   # Retrieve disturbances from simList
+  simObjEventIDs <- as.character(sim$disturbanceMeta$eventID[
+    !is.na(sim$disturbanceMeta$sourceObjectName)])
   for (i in which(!is.na(sim$disturbanceMeta$sourceObjectName))){
 
     distRasts[[as.character(sim$disturbanceMeta[i,]$eventID)]] <- get(
@@ -679,9 +681,14 @@ ReadDisturbances <- function(sim, year = time(sim)){
       if (exists("name")) paste("; name =", shQuote(name))),
       if (exists("disturbance_type_id")) paste("; CBM type ID =", disturbance_type_id))
 
-    distValues <- CBMutils::extractToRast(
-      distRasts[[i]], templateRast = sim$masterRaster
-    ) |> reproducible::Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
+    distValues <- if (names(distRasts)[[i]] %in% simObjEventIDs){
+      # Raster retrieved from the simList: new each year, so Cache never hits
+      CBMutils::extractToRast(distRasts[[i]], templateRast = sim$masterRaster)
+    }else{
+      CBMutils::extractToRast(
+        distRasts[[i]], templateRast = sim$masterRaster
+      ) |> reproducible::Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
+    }
 
     if (P(sim)$saveRasters){
       outPath <- file.path(outputPath(sim), "CBM_dataPrep", sprintf("distEvents-%s_%s-%s.tif", eventIDs[[i]], year, i))
