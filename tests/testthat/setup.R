@@ -4,22 +4,19 @@ if (!testthat::is_testing()){
   testthat::source_test_helpers(env = globalenv())
 }
 
-# Source work in progress SpaDES module testing functions
-suppressPackageStartupMessages(library(SpaDES.core))
-tempScript <- tempfile(fileext = ".R")
-download.file(
-  "https://raw.githubusercontent.com/suz-estella/SpaDES.core/refs/heads/suz-testthat/R/testthat.R",
-  tempScript, quiet = TRUE)
-source(tempScript)
+# Set module directory and name
+moduleDir  <- normalizePath(testthat::test_path("../.."))
+moduleName <- basename(moduleDir)
 
-# Set up testing directories and global options
-SpaDEStestSetGlobalOptions()
-spadesTestPaths <- SpaDEStestSetUpDirectories()
+# Source module functions
+lapply(list.files(file.path(moduleDir, "R"), pattern = "\\.R$", full.names = TRUE), source)
+for (e in parse(file.path(moduleDir, paste0(moduleName, ".R")))){
+  if (is.call(e) && identical(e[[1]], as.name("<-")) && is.name(e[[2]])) eval(e)
+}
 
-# Install required packages
-withr::with_options(c(timeout = 600), Require::Install(
-  c(SpaDES.core::packages(modules = basename(getwd()), paths = "..")[[1]],
-    "SpaDES.project", "googledrive"),
-  repos = unique(c("predictiveecology.r-universe.dev", getOption("repos")))
-))
+# Set temporary output directory
+tempDir <- tempfile(basename(moduleDir))
+if (testthat::is_testing()) withr::defer(
+  unlink(tempDir, recursive = TRUE),
+  envir = testthat::teardown_env(), priority = "last")
 

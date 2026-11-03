@@ -6,24 +6,9 @@ test_that("Module: RIA with NTEMS disturbances", {
   ## Run simInit and spades ----
 
   # Set up project
-  projectName <- "RIA-disturbancesNTEMS"
-  times       <- list(start = 2020, end = 2021)
-
-  simInitInput <- SpaDES.project::setupProject(
-
-    modules = "CBM_dataPrep",
-    times   = times,
-    paths   = list(
-      projectPath = spadesTestPaths$projectPath,
-      modulePath  = spadesTestPaths$modulePath,
-      packagePath = spadesTestPaths$packagePath,
-      inputPath   = spadesTestPaths$inputPath,
-      cachePath   = spadesTestPaths$cachePath,
-      outputPath  = file.path(spadesTestPaths$temp$outputs, projectName)
-    ),
-
-    # Set required packages for project set up
-    require = "terra",
+  simInitInput <- setupProjectTest(
+    projectName = "RIA-disturbancesNTEMS",
+    times       = list(start = 2020, end = 2021),
 
     # Set study area
     masterRaster = terra::rast(

@@ -5,31 +5,14 @@ test_that("Module: SK with SCANFI 2020 data", {
 
   ## Run simInit and spades ----
 
-  ## Skip test if source data is not already available
+  ## Test only to be run manually
   ## Source data is too large to download for a test
-  testthat::skip_if(
-    !file.exists(file.path(spadesTestPaths$inputPath, "SCANFI-2020")),
-    message = "inputs directory does not contain SCANFI-2020 data")
+  testthat::skip()
 
   # Set up project
-  projectName <- "SK-SCANFI-2020"
-  times       <- list(start = 2019, end = 2020) # Check age backtracking
-
-  simInitInput <- SpaDES.project::setupProject(
-
-    modules = "CBM_dataPrep",
-    times   = times,
-    paths   = list(
-      projectPath = spadesTestPaths$projectPath,
-      modulePath  = spadesTestPaths$modulePath,
-      packagePath = spadesTestPaths$packagePath,
-      inputPath   = spadesTestPaths$inputPath,
-      cachePath   = spadesTestPaths$cachePath,
-      outputPath  = file.path(spadesTestPaths$temp$outputs, projectName)
-    ),
-
-    # Set required packages for project set up
-    require = "terra",
+  simInitInput <- setupProjectTest(
+    projectName = "SK-SCANFI-2020",
+    times       = list(start = 2019, end = 2020), # Check age backtracking
 
     # Set study area
     masterRaster = terra::rast(

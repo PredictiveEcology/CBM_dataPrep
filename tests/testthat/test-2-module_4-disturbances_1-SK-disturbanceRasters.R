@@ -6,24 +6,9 @@ test_that("Module: SK with disturbanceRasters", {
   ## Run simInit and spades ----
 
   # Set up project
-  projectName <- "SK-disturbanceRasters"
-  times       <- list(start = 1998, end = 2000)
-
-  simInitInput <- SpaDES.project::setupProject(
-
-    modules = "CBM_dataPrep",
-    times   = times,
-    paths   = list(
-      projectPath = spadesTestPaths$projectPath,
-      modulePath  = spadesTestPaths$modulePath,
-      packagePath = spadesTestPaths$packagePath,
-      inputPath   = spadesTestPaths$inputPath,
-      cachePath   = spadesTestPaths$cachePath,
-      outputPath  = file.path(spadesTestPaths$temp$outputs, projectName)
-    ),
-
-    # Set required packages for project set up
-    require = "terra",
+  simInitInput <- setupProjectTest(
+    projectName = "SK-disturbanceRasters",
+    times       = list(start = 1998, end = 2000),
 
     # Set study area
     masterRaster = terra::rast(
