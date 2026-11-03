@@ -5,7 +5,7 @@ if (!testthat::is_testing()){
 }
 
 # Set module directory and name
-moduleDir  <- normalizePath(testthat::test_path("../.."))
+moduleDir  <- normalizePath(test_path("../.."), winslash = "/")
 moduleName <- basename(moduleDir)
 
 # Source module functions
@@ -15,8 +15,8 @@ for (e in parse(file.path(moduleDir, paste0(moduleName, ".R")))){
 }
 
 # Set temporary output directory
-tempDir <- tempfile(basename(moduleDir))
-if (testthat::is_testing()) withr::defer(
+tempDir <- tempfile(moduleName)
+if (is_testing()) withr::defer(
   unlink(tempDir, recursive = TRUE),
-  envir = testthat::teardown_env(), priority = "last")
+  envir = teardown_env(), priority = "last")
 

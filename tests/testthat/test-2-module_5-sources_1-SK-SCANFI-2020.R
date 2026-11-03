@@ -5,9 +5,7 @@ test_that("Module: SK with SCANFI 2020 data", {
 
   ## Run simInit and spades ----
 
-  ## Test only to be run manually
-  ## Source data is too large to download for a test
-  testthat::skip()
+  skip_if(is_testing()) # Test expensive: kept for interactive testing
 
   # Set up project
   simInitInput <- setupProjectTest(

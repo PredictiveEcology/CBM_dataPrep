@@ -29,7 +29,8 @@ setupProjectTest <- function(
       packagePath = packagePath,
       inputPath   = inputPath,
       cachePath   = cachePath,
-      outputPath  = outputPath
+      outputPath  = outputPath,
+      testdata    = testthat::test_path("testdata")
     )
   )
   simInitInput <- c(simInitInput, list(...))
