@@ -20,10 +20,15 @@ if (isTRUE(as.logical(Sys.getenv("CI")))){
   # Source module functions
   moduleDir  <- normalizePath(test_path("../.."), winslash = "/")
   moduleName <- basename(moduleDir)
-
+  pkgs <- SpaDES.core::packages(modules = moduleName, paths = dirname(moduleDir))[[1]]
+  Require::Require(pkgs)
   lapply(list.files(file.path(moduleDir, "R"), pattern = "\\.R$", full.names = TRUE), source)
   for (e in parse(file.path(moduleDir, paste0(moduleName, ".R")))){
     if (is.call(e) && identical(e[[1]], as.name("<-")) && is.name(e[[2]])) eval(e)
   }
 }
+
+# Set temporary directory
+tempDir <- file.path(tempdir(), "testthat-module")
+if (is_testing()) withr::defer(unlink(tempDir, recursive = TRUE), envir = teardown_env(), priority = "last")
 

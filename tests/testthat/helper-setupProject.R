@@ -9,27 +9,24 @@ setupProjectTest <- function(
     cachePath   = file.path(tempDir, "cache"),
     outputPath  = file.path(tempDir, "outputs", projectName),
     packagePath = Sys.getenv("R_LIBS_USER"),
+    tempDir     = file.path(tempdir(), "testthat-module"),
     ...){
 
   # Get module directory and name
   moduleDir  <- normalizePath(test_path("../.."), winslash = "/")
   moduleName <- basename(moduleDir)
 
-  # Set temporary directory
-  tempDir <- file.path(tempdir(), paste0("testthat-", moduleName))
-  if (testthat::is_testing()) withr::defer(
-    unlink(tempDir, recursive = TRUE),
-    envir = testthat::teardown_env(), priority = "last")
+  # Interactive testing: test module in place
+  if (!"modulePath" %in% names(match.call()) &
+      !testthat::is_testing() & identical(modules, moduleName)){
+    modulePath <- dirname(moduleDir)
+  }
 
-  # Set module path
-  if (!testthat::is_testing() & identical(modules, moduleName)){
-    modulePath <- dirname(moduleDir) # Test module in place
-  }else{
-    if (!file.exists(file.path(modulePath, moduleName))){
-      dir.create(file.path(modulePath, moduleName), recursive = TRUE, showWarnings = FALSE)
-      file.copy(file.path(moduleDir, c(paste0(moduleName, ".R"), "R", "data")),
-                file.path(modulePath, moduleName),
-                recursive = TRUE)
+  # Copy module to modulePath
+  if (!file.exists(file.path(modulePath, moduleName))){
+    dir.create(file.path(modulePath, moduleName), recursive = TRUE, showWarnings = FALSE)
+    for (f in file.path(moduleDir, c(paste0(moduleName, ".R"), "R", "data"))){
+      if (file.exists(f)) file.copy(f, file.path(modulePath, moduleName), recursive = TRUE)
     }
   }
 
