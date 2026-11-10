@@ -1,15 +1,4 @@
 
-if (!testthat::is_testing()){
-  suppressPackageStartupMessages(library(testthat))
-  testthat::source_test_helpers(env = globalenv())
-}
-
-# Set temporary output directory
-tempDir <- file.path(tempdir(), "testthat-module")
-if (is_testing()) withr::defer(
-  unlink(tempDir, recursive = TRUE),
-  envir = teardown_env(), priority = "last")
-
 if (isTRUE(as.logical(Sys.getenv("CI")))){
 
   # Install SpaDES.project
@@ -22,6 +11,11 @@ if (isTRUE(as.logical(Sys.getenv("CI")))){
   }
 
 }else{
+
+  if (!testthat::is_testing()){
+    suppressPackageStartupMessages(library(testthat))
+    testthat::source_test_helpers(env = globalenv())
+  }
 
   # Source module functions
   moduleDir  <- normalizePath(test_path("../.."), winslash = "/")
