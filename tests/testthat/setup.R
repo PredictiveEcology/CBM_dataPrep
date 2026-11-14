@@ -1,23 +1,21 @@
 
-if (isTRUE(as.logical(Sys.getenv("CI")))){
+if (!testthat::is_testing()){
+  suppressPackageStartupMessages(library(testthat))
+  testthat::source_test_helpers(env = globalenv())
+}
 
-  # Install SpaDES.project
+# Install SpaDES.project
+if (tryCatch(packageVersion("SpaDES.project") < "0.1.1", error = function(x) TRUE)){
   Require::Install("SpaDES.project", repos = "predictiveecology.r-universe.dev")
+}
 
-  # Install and authorize Google Drive
-  if (Sys.getenv("GOOGLE_AUTH") != ""){
-    Require::Install("googledrive")
-    googledrive::drive_auth(path = Sys.getenv("GOOGLE_AUTH"))
-  }
+# Set temporary directory
+tempDir <- file.path(tempdir(), "testthat-module")
+if (is_testing()) withr::defer(unlink(tempDir, recursive = TRUE), envir = teardown_env(), priority = "last")
 
-}else{
+# Source module functions
+if (!as.logical(Sys.getenv("CI", FALSE))){
 
-  if (!testthat::is_testing()){
-    suppressPackageStartupMessages(library(testthat))
-    testthat::source_test_helpers(env = globalenv())
-  }
-
-  # Source module functions
   moduleDir  <- normalizePath(test_path("../.."), winslash = "/")
   moduleName <- basename(moduleDir)
   pkgs <- SpaDES.core::packages(modules = moduleName, paths = dirname(moduleDir))[[1]]
@@ -27,8 +25,4 @@ if (isTRUE(as.logical(Sys.getenv("CI")))){
     if (is.call(e) && identical(e[[1]], as.name("<-")) && is.name(e[[2]])) eval(e)
   }
 }
-
-# Set temporary directory
-tempDir <- file.path(tempdir(), "testthat-module")
-if (is_testing()) withr::defer(unlink(tempDir, recursive = TRUE), envir = teardown_env(), priority = "last")
 
