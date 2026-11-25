@@ -8,7 +8,7 @@ test_that("Module: SK with disturbanceRasters", {
   # Set up project
   simInitInput <- setupProjectTest(
     projectName = "SK-disturbanceRasters",
-    times       = list(start = 1998, end = 2000),
+    times       = list(start = 1998, end = 1999),
 
     # Set study area
     masterRaster = terra::rast(
@@ -20,8 +20,13 @@ test_that("Module: SK with disturbanceRasters", {
 
     # Set disturbances
     disturbanceMeta = rbind(
+
+      # Events are only in pixels with a value of 1
+      # Events are delayed by 1 year
       data.frame(eventID = 1, name = "Wildfire",
                  sourceValue = 1, sourceDelay = 1, sourceObjectName = NA_character_),
+
+      # Events come from the 'clearcut' object
       data.frame(eventID = 2, name = "Clearcut harvesting without salvage",
                  sourceValue = NA_integer_, sourceDelay = NA_integer_, sourceObjectName = "clearcut")
     ),
@@ -50,8 +55,9 @@ test_that("Module: SK with disturbanceRasters", {
   expect_s4_class(simTest, "simList")
 
 
-  ## Check output 'disturbanceEvents' ----
+  ## Check outputs ----
 
+  # disturbanceEvents
   expect_true(!is.null(simTest$disturbanceEvents))
   expect_true(inherits(simTest$disturbanceEvents, "data.table"))
 
@@ -61,18 +67,50 @@ test_that("Module: SK with disturbanceRasters", {
     expect_true(all(!is.na(simTest$disturbanceEvents[[colName]])))
   }
 
-  distEvents <- split(simTest$disturbanceEvents, simTest$disturbanceEvents$eventID)
-  expect_identical(names(distEvents), c("1", "2"))
+  expect_equal(
+    simTest$disturbanceEvents[order(eventID, year, pixelIndex)],
+    rbind(
+      data.table(pixelIndex = 1, year = 1999, eventID = 1),
+      data.table(pixelIndex = 1, year = 1998, eventID = 2),
+      data.table(pixelIndex = 1, year = 1999, eventID = 2)
+    )
+  )
 
-  expect_equal(distEvents[["1"]], rbind(
-    data.table(pixelIndex = 1, year = 1999, eventID = 1)
-  ))
 
-  expect_equal(distEvents[["2"]], rbind(
-    data.table(pixelIndex = 1, year = 1998, eventID = 2),
-    data.table(pixelIndex = 1, year = 1999, eventID = 2),
-    data.table(pixelIndex = 1, year = 2000, eventID = 2)
-  ))
+  ## Update disturbances and continue simulation ----
+
+  # Other modules may add disturbance rasters during the simulation
+  simTest$disturbanceRasters$`1`$`2000` <- terra::rast(
+    crs        = "EPSG:3979",
+    extent     = c(xmin = -687696, xmax = -681036, ymin = 711955, ymax = 716183),
+    resolution = 30,
+    vals       = c(3, 1, rep(NA, 31300))
+  )
+
+  # Other modules may update the disturbance raster during the simulation
+  simTest$clearcut <- terra::rast(
+    crs        = "EPSG:3979",
+    extent     = c(xmin = -687696, xmax = -681036, ymin = 711955, ymax = 716183),
+    resolution = 30,
+    vals       = c(NA, 1, rep(NA, 31300))
+  )
+
+  # Run spades
+  SpaDES.core::end(simTest) <- 2000
+  simTest <- SpaDES.core::spades(simTest)
+  expect_s4_class(simTest, "simList")
+
+  # Check disturbanceEvents
+  expect_equal(
+    simTest$disturbanceEvents[order(eventID, year, pixelIndex)],
+    rbind(
+      data.table(pixelIndex = 1, year = 1999, eventID = 1),
+      data.table(pixelIndex = 2, year = 2001, eventID = 1),
+      data.table(pixelIndex = 1, year = 1998, eventID = 2),
+      data.table(pixelIndex = 1, year = 1999, eventID = 2),
+      data.table(pixelIndex = 2, year = 2000, eventID = 2)
+    )
+  )
 })
 
 
