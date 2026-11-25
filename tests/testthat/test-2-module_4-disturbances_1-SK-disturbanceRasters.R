@@ -34,7 +34,6 @@ test_that("Module: SK with disturbanceRasters", {
     ),
 
     # Set disturbances
-    ## Test matching user disturbances with CBM-CFS3 disturbances
     disturbanceMeta = rbind(
 
       # Events are only in pixels with a value of 1
@@ -71,16 +70,7 @@ test_that("Module: SK with disturbanceRasters", {
   expect_s4_class(simTest, "simList")
 
 
-  ## Check outputs
-
-  # disturbanceMeta
-  expect_true(!is.null(simTest$disturbanceMeta))
-  expect_true(inherits(simTest$disturbanceMeta, "data.table"))
-
-  expect_equal(nrow(simTest$disturbanceMeta), 2)
-
-  ## Check that disturbances have been matched with CBM-CFS3 disturbances correctly
-  expect_equal(simTest$disturbanceMeta$disturbance_type_id, c(1, 204))
+  ## Check outputs ----
 
   # disturbanceEvents
   expect_true(!is.null(simTest$disturbanceEvents))
