@@ -69,8 +69,8 @@ test_that("Module: set masterRaster", {
   expect_s4_class(simTest, "simList")
 
   expect_is(simTest$masterRaster, "SpatRaster")
-  expect_equal(terra::crs(simTest$masterRaster), terra::crs(masterRasterTemplate("SCANFI")))
-  expect_equal(terra::res(simTest$masterRaster), terra::res(masterRasterTemplate("SCANFI")))
+  expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
+  expect_equal(terra::res(simTest$masterRaster), terra::res(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::ncell(simTest$masterRaster), 4761)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 3690)
 
@@ -104,7 +104,7 @@ test_that("Module: set masterRaster", {
   expect_s4_class(simTest, "simList")
 
   expect_is(simTest$masterRaster, "SpatRaster")
-  expect_equal(terra::crs(simTest$masterRaster), terra::crs(masterRasterTemplate("SCANFI")))
+  expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(240, 2))
   expect_equal(terra::ncell(simTest$masterRaster), 81)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 59)
@@ -139,8 +139,8 @@ test_that("Module: set masterRaster", {
   expect_s4_class(simTest, "simList")
 
   expect_is(simTest$masterRaster, "SpatRaster")
-  expect_equal(terra::crs(simTest$masterRaster), terra::crs(masterRasterTemplate("SCANFI")))
-  expect_equal(terra::res(simTest$masterRaster), terra::res(masterRasterTemplate("SCANFI")))
+  expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
+  expect_equal(terra::res(simTest$masterRaster), terra::res(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::ncell(simTest$masterRaster), 20049120)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 9942278)
 
@@ -191,7 +191,7 @@ test_that("Module: set masterRaster", {
   expect_s4_class(simTest, "simList")
 
   expect_is(simTest$masterRaster, "SpatRaster")
-  expect_equal(terra::crs(simTest$masterRaster), terra::crs(masterRasterTemplate("SCANFI")))
+  expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(3000, 2))
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 9403)
 
@@ -220,7 +220,7 @@ test_that("Module: set masterRaster", {
   expect_s4_class(simTest, "simList")
 
   expect_is(simTest$masterRaster, "SpatRaster")
-  expect_equal(terra::crs(simTest$masterRaster), terra::crs(masterRasterTemplate("SCANFI")))
+  expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(3000, 2))
   expect_equal(terra::ncell(simTest$masterRaster), 76953)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 26733)
@@ -272,7 +272,7 @@ test_that("Module: set masterRaster", {
   expect_s4_class(simTest, "simList")
 
   expect_is(simTest$masterRaster, "SpatRaster")
-  expect_equal(terra::crs(simTest$masterRaster), terra::crs(masterRasterTemplate("SCANFI")))
+  expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(3000, 2))
   expect_equal(terra::ncell(simTest$masterRaster), 219672)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 80330)
@@ -302,7 +302,7 @@ test_that("Module: set masterRaster", {
   expect_s4_class(simTest, "simList")
 
   expect_is(simTest$masterRaster, "SpatRaster")
-  expect_equal(terra::crs(simTest$masterRaster), terra::crs(masterRasterTemplate("SCANFI")))
+  expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(3000, 2))
   expect_equal(terra::ncell(simTest$masterRaster), 52210)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 8435)
