@@ -123,15 +123,12 @@ defineModule(sim, list(
       desc = paste(
         "Names of known disturbance sources to use. Can be one or more of: 'NTEMS'.",
         "NTEMS source: CA Forest Fires 1985-2020 and CA Forest Harvest 1985-2020 GeoTIFF layers.",
-          "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
-          "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
-          "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
+        "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
+        "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
+        "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
       ))
   ),
   outputObjects = bindrows(
-    createsOutput(
-      objectName = "masterRaster", objectClass = "SpatRaster",
-      desc = "Raster template defining the study area. NA cells will be excluded from analysis."),
     createsOutput(
       objectName = "standDT", objectClass = "data.table",
       desc = "Table of stand attributes.",
@@ -202,14 +199,11 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
     init = {
 
-      # Prepare master raster
-      sim <- PrepMasterRaster(sim)
+      # Prepare species data
+      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "matchSpecies", eventPriority = 1)
 
       # Prepare cohorts
       sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "prepCohorts", eventPriority = 2)
-
-      # Prepare species data
-      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "matchSpecies", eventPriority = 1)
 
       # Prepare disturbances
       sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbances",  eventPriority = 8)
@@ -326,48 +320,16 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
   return(invisible(sim))
 }
 
-PrepMasterRaster <- function(sim){
-
-  if (isURL(sim$masterRaster)){
-    sim$masterRaster <- reproducible::prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$masterRaster,
-      fun = terra::rast
-    )
-  }
-
-  if (is.null(sim$masterRaster)){
-
-    if (is.null(sim$masterRasterTemplate)) stop("Provide `masterRaster` or `masterRasterTemplate`")
-
-    masterRasterTemplate <- sim$masterRasterTemplate
-    if (is.character(masterRasterTemplate) && length(masterRasterTemplate) == 1){
-      masterRasterTemplate <- studyAreaRasterTemplate(masterRasterTemplate)
-    }else{
-      sim$masterRasterTemplate <- NULL # Remove from simList
-    }
-
-    sim$masterRaster <- studyAreaRasterize(
-      sim$studyAreaReporting,
-      template = masterRasterTemplate,
-      res      = sim$masterRasterRes
-    )
-  }
-
-  if (terra::is.lonlat(sim$masterRaster))          stop("masterRaster must be in a projected CRS")
-  if (terra::ncell(sim$masterRaster) > (2^31 - 1)) stop("masterRaster pixel count limited to 2^31 - 1")
-
-  return(invisible(sim))
-}
-
 ReadCohorts <- function(sim){
 
   # Initiate pixel table
+  if (terra::ncell(sim$masterRaster) > (2^31 - 1)) stop("masterRaster pixel count limited to 2^31 - 1")
   allPixDT <- data.table::data.table(
     pixelIndex = 1:terra::ncell(sim$masterRaster),
     key = "pixelIndex")
 
   # Set cell area
+  if (terra::is.lonlat(sim$masterRaster)) stop("masterRaster must be in a projected CRS")
   data.table::set(
     allPixDT, j = "area",
     value = prod(terra::res(sim$masterRaster) * terra::linearUnits(sim$masterRaster)))
@@ -775,8 +737,8 @@ ReadDisturbancesNTEMS <- function(sim){
       "; name = ", shQuote(name)))
 
     distValues <- data.table::data.table(year = CBMutils::extractToRast(
-        sourceTIF, templateRast = sim$masterRaster
-      ) |> reproducible::Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
+      sourceTIF, templateRast = sim$masterRaster
+    ) |> reproducible::Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
     )
 
     if (P(sim)$saveRasters){
@@ -804,7 +766,16 @@ ReadDisturbancesNTEMS <- function(sim){
 
 .inputObjects <- function(sim){
 
-  if (!suppliedElsewhere("studyAreaReporting", sim)){
+  if (isURL(sim$masterRaster)){
+    sim$masterRaster <- reproducible::prepInputs(
+      destinationPath = inputPath(sim),
+      url = sim$masterRaster,
+      fun = terra::rast
+    )
+  }
+
+  # Set studyAreaReporting
+  if (is.null(sim$studyAreaReporting)){
 
     if (is.null(sim$studyAreaAdmin) & is.null(sim$studyAreaEco)){
 
@@ -822,6 +793,23 @@ ReadDisturbancesNTEMS <- function(sim){
         studyAreaEco   = sim$studyAreaEco
       )
     }
+  }
+
+  # Set masterRaster
+  if (is.null(sim$masterRaster)){
+
+    if (is.null(sim$masterRasterTemplate)) stop("Provide `masterRaster` or `masterRasterTemplate`")
+
+    masterRasterTemplate <- sim$masterRasterTemplate
+    if (is.character(masterRasterTemplate) && length(masterRasterTemplate) == 1){
+      masterRasterTemplate <- studyAreaRasterTemplate(masterRasterTemplate)
+    }
+
+    sim$masterRaster <- studyAreaRasterize(
+      sim$studyAreaReporting,
+      template = masterRasterTemplate,
+      res      = sim$masterRasterRes
+    )
   }
 
   # Growth curve ID
