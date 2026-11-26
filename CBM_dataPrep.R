@@ -214,14 +214,11 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
     init = {
 
-      # # Prepare master raster
-      # sim <- PrepMasterRaster(sim)
+      # Prepare species data
+      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "matchSpecies", eventPriority = 1)
 
       # Prepare cohorts
       sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "prepCohorts", eventPriority = 2)
-
-      # Prepare species data
-      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "matchSpecies", eventPriority = 1)
 
       # Prepare disturbances
       sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbances",  eventPriority = 8)
@@ -792,7 +789,8 @@ ReadDisturbancesNTEMS <- function(sim){
     )
   }
 
-  if (!suppliedElsewhere("studyAreaReporting", sim)){
+  # Set studyAreaReporting
+  if (is.null(sim$studyAreaReporting)){
 
     if (is.null(sim$studyAreaAdmin) & is.null(sim$studyAreaEco)){
 
@@ -812,6 +810,7 @@ ReadDisturbancesNTEMS <- function(sim){
     }
   }
 
+  # Set masterRaster
   if (is.null(sim$masterRaster)){
 
     if (is.null(sim$masterRasterTemplate)) stop("Provide `masterRaster` or `masterRasterTemplate`")
@@ -830,24 +829,33 @@ ReadDisturbancesNTEMS <- function(sim){
     )
   }
 
-  # Set studyArea and rasterToMatch
-  ecodistricts <- reproducible::prepInputs(
-    destinationPath = dataPath(sim),
-    archive         = file.path(dataPath(sim), "ecodistricts.zip"),
-    targetFile      = "ecodistricts.shp",
-    fun             = sf::st_read(targetFile, quiet = TRUE)
-  ) |>
-    sf::st_transform(sf::st_crs(sim$masterRaster))
+  # Set studyArea
+  if (!suppliedElsewhere("studyArea", sim)){
 
-  sim$studyArea <- sf::st_sf(
-    geometry = sf::st_union(
-      ecodistricts[sf::st_intersects(
-        ecodistricts,
-        sf::st_transform(sf::st_union(sim$studyAreaReporting), sf::st_crs(sim$masterRaster)),
-        sparse = FALSE),]
-    ))
+    ecodistricts <- reproducible::prepInputs(
+      destinationPath = dataPath(sim),
+      archive         = file.path(dataPath(sim), "ecodistricts.zip"),
+      targetFile      = "ecodistricts.shp",
+      fun             = sf::st_read(targetFile, quiet = TRUE)
+    ) |>
+      sf::st_transform(sf::st_crs(sim$masterRaster))
 
-  sim$rasterToMatch <- masterRasterFromTemplate(sim$studyArea, template = sim$masterRaster)
+    sim$studyArea <- sf::st_sf(
+      geometry = sf::st_union(
+        ecodistricts[sf::st_intersects(
+          ecodistricts,
+          sf::st_transform(sf::st_union(sim$studyAreaReporting), sf::st_crs(sim$masterRaster)),
+          sparse = FALSE),]
+      ))
+  }
+
+  # Set rasterToMatch
+  if (!suppliedElsewhere("rasterToMatch", sim) & !is.null(sim$studyArea)){
+    sim$rasterToMatch <- masterRasterFromTemplate(
+      sim$studyArea,
+      template = sim$masterRaster
+    )
+  }
 
   # Growth curve ID
   if (!suppliedElsewhere("curveID", sim)){
