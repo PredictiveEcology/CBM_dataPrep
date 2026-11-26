@@ -126,7 +126,13 @@ defineModule(sim, list(
           "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
           "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
           "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
-      ))
+      )),
+    expectsInput(
+      objectName = "studyArea", objectClass = "SpatRaster",
+      desc = ""),
+    expectsInput(
+      objectName = "rasterToMatch", objectClass = "SpatRaster",
+      desc = ""),
   ),
   outputObjects = bindrows(
     createsOutput(
@@ -810,6 +816,37 @@ ReadDisturbancesNTEMS <- function(sim){
       template = masterRasterTemplate,
       res      = sim$masterRasterRes
     )
+  }
+
+  if ("Biomass_core" %in% modules(sim)){
+
+    # Set studyArea
+    if (is.null(sim$studyArea)){
+
+      ecodistricts <- reproducible::prepInputs(
+        destinationPath = dataPath(sim),
+        archive         = file.path(dataPath(sim), "ecodistricts.zip"),
+        targetFile      = "ecodistricts.shp",
+        fun             = sf::st_read(targetFile, quiet = TRUE)
+      ) |>
+        sf::st_transform(sf::st_crs(sim$masterRaster))
+
+      sim$studyArea <- sf::st_sf(
+        geometry = sf::st_union(
+          ecodistricts[sf::st_intersects(
+            ecodistricts,
+            sf::st_transform(sf::st_union(sim$studyAreaReporting), sf::st_crs(sim$masterRaster)),
+            sparse = FALSE),]
+        ))
+    }
+
+    # Set rasterToMatch
+    if (is.null(sim$rasterToMatch)){
+      sim$rasterToMatch <- studyAreaRasterize(
+        sim$studyArea,
+        template = sim$masterRaster
+      )
+    }
   }
 
   # Growth curve ID
