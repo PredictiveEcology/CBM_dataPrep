@@ -432,10 +432,9 @@ ReadCohorts <- function(sim){
     }
   }
 
-  # Set admin_abbrev
-  if (!"admin_abbrev" %in% names(allPixDT) & "admin_name" %in% names(allPixDT)){
-    allPixDT[, admin_abbrev := adminAbbrev(admin_name)]
-  }
+  # Check for key attributes
+  if (any(is.na(allPixDT[, .(admin_name, eco_id)]))) stop(
+    "pixel(s) outside of admin and/or ecozone boundaries")
 
   # Set cohort age data year if not set
   if ("age" %in% names(allPixDT) & is.null(sim$ageDataYear)){
