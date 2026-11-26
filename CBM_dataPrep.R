@@ -432,10 +432,6 @@ ReadCohorts <- function(sim){
     }
   }
 
-  # Check for key attributes
-  if (any(is.na(allPixDT[, .(admin_name, eco_id)]))) stop(
-    "pixel(s) outside of admin and/or ecozone boundaries")
-
   # Set cohort age data year if not set
   if ("age" %in% names(allPixDT) & is.null(sim$ageDataYear)){
     warning("'ageDataYear' not provided by user; `ageLocator` ages assumed to represent cohort age at simulation start")
