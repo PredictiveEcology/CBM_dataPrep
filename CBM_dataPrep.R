@@ -133,6 +133,12 @@ defineModule(sim, list(
     expectsInput(
       objectName = "rasterToMatch", objectClass = "SpatRaster",
       desc = ""),
+    expectsInput(
+      objectName = "studyArea_biomassParam", objectClass = "SpatRaster",
+      desc = ""),
+    expectsInput(
+      objectName = "rasterToMatch_biomassParam", objectClass = "SpatRaster",
+      desc = "")
   ),
   outputObjects = bindrows(
     createsOutput(
@@ -808,50 +814,49 @@ ReadDisturbancesNTEMS <- function(sim){
     )
   }
 
-  if ("Biomass_core" %in% modules(sim)){
+  inputObjToSet <- setdiff(
+    data.table::rbindlist(
+      lapply(do.call(c, modules(sim)), function(module) cbind(module = module, inputObjects(sim, module))),
+      fill = TRUE)[module != "CBM_dataPrep", objectName],
+    names(sim)
+  )
 
-    # Set studyArea
-    if (is.null(sim$studyArea)){
+  studyAreaReporting <- sf::st_transform(
+    sf::st_union(sim$studyAreaReporting),
+    sf::st_crs(sim$masterRaster))
 
-      ecodistricts <- reproducible::prepInputs(
-        destinationPath = dataPath(sim),
-        archive         = file.path(dataPath(sim), "ecodistricts.zip"),
-        targetFile      = "ecodistricts.shp",
-        fun             = sf::st_read(targetFile, quiet = TRUE)
-      ) |>
-        sf::st_transform(sf::st_crs(sim$masterRaster))
-
-      sim$studyArea <- sf::st_sf(
-        geometry = sf::st_union(
-          ecodistricts[sf::st_intersects(
-            ecodistricts,
-            sf::st_transform(sf::st_union(sim$studyAreaReporting), sf::st_crs(sim$masterRaster)),
-            sparse = FALSE),]
-        ))
-    }
-
-    # Set rasterToMatch
-    if (is.null(sim$rasterToMatch)){
-      sim$rasterToMatch <- studyAreaRasterize(
-        sim$studyArea,
-        template = sim$masterRaster
-      )
-    }
+  # Set studyArea
+  if ("studyArea" %in% inputObjToSet){
+    sim$studyArea <- sf::st_sf(geometry = sf::st_buffer(studyAreaReporting, 20000))
   }
+  if ("rasterToMatch" %in% inputObjToSet & !is.null(sim$studyArea)){
+    sim$rasterToMatch <- studyAreaRasterize(
+      sim$studyArea,
+      template = sim$masterRaster
+    )
+  }
+  # Set studyArea_biomassParam
+  if ("studyArea_biomassParam" %in% inputObjToSet){
 
-  # Growth curve ID
-  if (!suppliedElsewhere("curveID", sim)){
+    ecodistricts <- reproducible::prepInputs(
+      destinationPath = dataPath(sim),
+      archive         = file.path(dataPath(sim), "ecodistricts.zip"),
+      targetFile      = "ecodistricts.shp",
+      fun             = sf::st_read(targetFile, quiet = TRUE)
+    ) |>
+      sf::st_transform(sf::st_crs(sim$masterRaster))
 
-    if (suppliedElsewhere("gcIndexLocator", sim)){
-      sim$curveID <- "curveID"
-
-    }else{
-      curveID <- c(
-        names(sim$cohortLocators)[!sapply(sim$cohortLocators, is.null)],
-        setdiff(subset(CBMutils::CBMsources, sourceID %in% sim$CBMsourceIDs)$attr, "age")
-      )
-      if (length(curveID) > 0) sim$curveID <- unique(curveID)
-    }
+    sim$studyArea_biomassParam <- sf::st_sf(
+      geometry = sf::st_union(ecodistricts[
+        sf::st_intersects(ecodistricts, sf::st_buffer(studyAreaReporting, 5000),
+                          sparse = FALSE),]
+      ))
+  }
+  if ("rasterToMatch_biomassParam" %in% inputObjToSet & !is.null(sim$studyArea_biomassParam)){
+    sim$rasterToMatch_biomassParam <- studyAreaRasterize(
+      sim$studyArea_biomassParam,
+      template = sim$masterRaster
+    )
   }
 
   # Return simList
