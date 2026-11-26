@@ -123,9 +123,9 @@ defineModule(sim, list(
       desc = paste(
         "Names of known disturbance sources to use. Can be one or more of: 'NTEMS'.",
         "NTEMS source: CA Forest Fires 1985-2020 and CA Forest Harvest 1985-2020 GeoTIFF layers.",
-        "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
-        "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
-        "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
+          "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
+          "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
+          "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
       ))
   ),
   outputObjects = bindrows(
