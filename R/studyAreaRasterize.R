@@ -1,5 +1,5 @@
 
-masterRasterFromTemplate <- function(studyArea, template, res = NULL){
+studyAreaRasterize <- function(studyArea, template, res = NULL){
 
   if (inherits(studyArea, "bbox")) studyArea <- sf::st_as_sfc(studyArea)
 
@@ -29,7 +29,7 @@ masterRasterFromTemplate <- function(studyArea, template, res = NULL){
   return(masterRaster)
 }
 
-masterRasterTemplate <- function(dataSource){
+studyAreaRasterTemplate <- function(dataSource){
 
   mrTemplates <- list(
     SCANFI = terra::rast(

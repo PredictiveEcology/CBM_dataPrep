@@ -14,7 +14,7 @@ test_that("Module: vector inputs", {
     masterRaster = terra::rast(
       crs        = "EPSG:3979",
       extent     = c(xmin = 2437830 - 50, xmax = 2437830 + 50, ymin = 126710 - 50, ymax = 126710 + 50),
-      resolution = 1,
+      resolution = 10,
       vals       = 1
     ),
 
@@ -46,9 +46,9 @@ test_that("Module: vector inputs", {
   }
   expect_identical(data.table::key(simTest$cohortDT), "cohortID")
 
-  expect_equal(nrow(simTest$cohortDT), 10000)
-  expect_equal(simTest$cohortDT$cohortID,   1:10000)
-  expect_equal(simTest$cohortDT$pixelIndex, 1:10000)
+  expect_equal(nrow(simTest$cohortDT), 100)
+  expect_equal(simTest$cohortDT$cohortID,   1:100)
+  expect_equal(simTest$cohortDT$pixelIndex, 1:100)
   expect_in(simTest$cohortDT$age,           10)
   expect_in(simTest$cohortDT$curveID,       "GC-1")
 

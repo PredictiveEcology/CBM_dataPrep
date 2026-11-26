@@ -817,12 +817,10 @@ ReadDisturbancesNTEMS <- function(sim){
 
     masterRasterTemplate <- sim$masterRasterTemplate
     if (is.character(masterRasterTemplate) && length(masterRasterTemplate) == 1){
-      masterRasterTemplate <- masterRasterTemplate(masterRasterTemplate)
-    }else{
-      sim$masterRasterTemplate <- NULL # Remove from simList
+      masterRasterTemplate <- studyAreaRasterTemplate(masterRasterTemplate)
     }
 
-    sim$masterRaster <- masterRasterFromTemplate(
+    sim$masterRaster <- studyAreaRasterize(
       sim$studyAreaReporting,
       template = masterRasterTemplate,
       res      = sim$masterRasterRes
@@ -851,7 +849,7 @@ ReadDisturbancesNTEMS <- function(sim){
 
   # Set rasterToMatch
   if (!suppliedElsewhere("rasterToMatch", sim) & !is.null(sim$studyArea)){
-    sim$rasterToMatch <- masterRasterFromTemplate(
+    sim$rasterToMatch <- studyAreaRasterize(
       sim$studyArea,
       template = sim$masterRaster
     )
