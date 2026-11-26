@@ -342,12 +342,12 @@ PrepMasterRaster <- function(sim){
 
     masterRasterTemplate <- sim$masterRasterTemplate
     if (is.character(masterRasterTemplate) && length(masterRasterTemplate) == 1){
-      masterRasterTemplate <- masterRasterTemplate(masterRasterTemplate)
+      masterRasterTemplate <- studyAreaRasterTemplate(masterRasterTemplate)
     }else{
       sim$masterRasterTemplate <- NULL # Remove from simList
     }
 
-    sim$masterRaster <- masterRasterFromTemplate(
+    sim$masterRaster <- studyAreaRasterize(
       sim$studyAreaReporting,
       template = masterRasterTemplate,
       res      = sim$masterRasterRes
