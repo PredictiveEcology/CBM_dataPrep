@@ -15,7 +15,7 @@ test_that("Module: vector inputs", {
       crs        = "EPSG:3979",
       extent     = c(xmin = 2437830 - 50, xmax = 2437830 + 50, ymin = 126710 - 50, ymax = 126710 + 50),
       resolution = 10,
-      vals       = 10
+      vals       = 1
     ),
 
     # Set vector inputs
