@@ -37,7 +37,8 @@ test_that("Module: set masterRaster", {
     masterRasterTemplate = terra::rast(
       crs        = "EPSG:3979",
       extent     = c(xmin = -687696, xmax = -681036, ymin = 711955, ymax = 716185),
-      resolution = 30
+      resolution = 30,
+      vals       = 1
     ),
     studyAreaReporting   = sf::st_sf(sf::st_buffer(sf::st_sfc(sf::st_point(c(-63.57688, 44.64269)), crs = 4326), 1000))
   ) |> SpaDES.core::simInitAndSpades2()
