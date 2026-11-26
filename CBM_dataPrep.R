@@ -123,15 +123,21 @@ defineModule(sim, list(
       desc = paste(
         "Names of known disturbance sources to use. Can be one or more of: 'NTEMS'.",
         "NTEMS source: CA Forest Fires 1985-2020 and CA Forest Harvest 1985-2020 GeoTIFF layers.",
-          "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
-          "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
-          "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
+        "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
+        "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
+        "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
       ))
   ),
   outputObjects = bindrows(
     createsOutput(
       objectName = "masterRaster", objectClass = "SpatRaster",
       desc = "Raster template defining the study area. NA cells will be excluded from analysis."),
+    createsOutput(
+      objectName = "studyArea", objectClass = "SpatRaster",
+      desc = ""),
+    createsOutput(
+      objectName = "rasterToMatch", objectClass = "SpatRaster",
+      desc = ""),
     createsOutput(
       objectName = "standDT", objectClass = "data.table",
       desc = "Table of stand attributes.",
@@ -356,6 +362,25 @@ PrepMasterRaster <- function(sim){
 
   if (terra::is.lonlat(sim$masterRaster))          stop("masterRaster must be in a projected CRS")
   if (terra::ncell(sim$masterRaster) > (2^31 - 1)) stop("masterRaster pixel count limited to 2^31 - 1")
+
+  # Set studyArea and rasterToMatch
+  ecodistricts <- reproducible::prepInputs(
+    destinationPath = dataPath(sim),
+    archive         = file.path(dataPath(sim), "ecodistricts.zip"),
+    targetFile      = "ecodistricts.shp",
+    fun             = sf::st_read(targetFile, quiet = TRUE)
+  ) |>
+    sf::st_transform(sf::st_crs(sim$masterRaster))
+
+  sim$studyArea <- sf::st_sf(
+    geometry = sf::st_union(
+      ecodistricts[sf::st_intersects(
+        ecodistricts,
+        sf::st_transform(sf::st_union(sim$studyAreaReporting), sf::st_crs(sim$masterRaster)),
+        sparse = FALSE),]
+    ))
+
+  sim$rasterToMatch <- masterRasterFromTemplate(sim$studyArea, template = sim$masterRaster)
 
   return(invisible(sim))
 }
@@ -775,8 +800,8 @@ ReadDisturbancesNTEMS <- function(sim){
       "; name = ", shQuote(name)))
 
     distValues <- data.table::data.table(year = CBMutils::extractToRast(
-        sourceTIF, templateRast = sim$masterRaster
-      ) |> reproducible::Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
+      sourceTIF, templateRast = sim$masterRaster
+    ) |> reproducible::Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
     )
 
     if (P(sim)$saveRasters){
