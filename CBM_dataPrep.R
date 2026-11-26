@@ -126,18 +126,24 @@ defineModule(sim, list(
         "Hermosilla, T., M.A. Wulder, J.C. White, N.C. Coops, G.W. Hobart, L.B. Campbell, 2016.",
         "Mass data processing of time series Landsat imagery: pixels to data products for forest monitoring.",
         "International Journal of Digital Earth 9(11), 1035-1054 (Hermosilla et al. 2016)."
-      ))
-  ),
-  outputObjects = bindrows(
-    createsOutput(
-      objectName = "masterRaster", objectClass = "SpatRaster",
-      desc = "Raster template defining the study area. NA cells will be excluded from analysis."),
-    createsOutput(
+      )),
+    expectsInput(
       objectName = "studyArea", objectClass = "SpatRaster",
       desc = ""),
-    createsOutput(
+    expectsInput(
       objectName = "rasterToMatch", objectClass = "SpatRaster",
       desc = ""),
+  ),
+  outputObjects = bindrows(
+    # createsOutput(
+    #   objectName = "masterRaster", objectClass = "SpatRaster",
+    #   desc = "Raster template defining the study area. NA cells will be excluded from analysis."),
+    # createsOutput(
+    #   objectName = "studyArea", objectClass = "SpatRaster",
+    #   desc = ""),
+    # createsOutput(
+    #   objectName = "rasterToMatch", objectClass = "SpatRaster",
+    #   desc = ""),
     createsOutput(
       objectName = "standDT", objectClass = "data.table",
       desc = "Table of stand attributes.",
@@ -208,8 +214,8 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
     init = {
 
-      # Prepare master raster
-      sim <- PrepMasterRaster(sim)
+      # # Prepare master raster
+      # sim <- PrepMasterRaster(sim)
 
       # Prepare cohorts
       sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "prepCohorts", eventPriority = 2)
@@ -848,6 +854,8 @@ ReadDisturbancesNTEMS <- function(sim){
       )
     }
   }
+
+  sim <- PrepMasterRaster(sim)
 
   # Growth curve ID
   if (!suppliedElsewhere("curveID", sim)){
