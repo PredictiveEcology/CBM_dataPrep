@@ -338,67 +338,16 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
   return(invisible(sim))
 }
 
-PrepMasterRaster <- function(sim){
-
-  if (isURL(sim$masterRaster)){
-    sim$masterRaster <- reproducible::prepInputs(
-      destinationPath = inputPath(sim),
-      url = sim$masterRaster,
-      fun = terra::rast
-    )
-  }
-
-  if (is.null(sim$masterRaster)){
-
-    if (is.null(sim$masterRasterTemplate)) stop("Provide `masterRaster` or `masterRasterTemplate`")
-
-    masterRasterTemplate <- sim$masterRasterTemplate
-    if (is.character(masterRasterTemplate) && length(masterRasterTemplate) == 1){
-      masterRasterTemplate <- masterRasterTemplate(masterRasterTemplate)
-    }else{
-      sim$masterRasterTemplate <- NULL # Remove from simList
-    }
-
-    sim$masterRaster <- masterRasterFromTemplate(
-      sim$studyAreaReporting,
-      template = masterRasterTemplate,
-      res      = sim$masterRasterRes
-    )
-  }
-
-  if (terra::is.lonlat(sim$masterRaster))          stop("masterRaster must be in a projected CRS")
-  if (terra::ncell(sim$masterRaster) > (2^31 - 1)) stop("masterRaster pixel count limited to 2^31 - 1")
-
-  # Set studyArea and rasterToMatch
-  ecodistricts <- reproducible::prepInputs(
-    destinationPath = dataPath(sim),
-    archive         = file.path(dataPath(sim), "ecodistricts.zip"),
-    targetFile      = "ecodistricts.shp",
-    fun             = sf::st_read(targetFile, quiet = TRUE)
-  ) |>
-    sf::st_transform(sf::st_crs(sim$masterRaster))
-
-  sim$studyArea <- sf::st_sf(
-    geometry = sf::st_union(
-      ecodistricts[sf::st_intersects(
-        ecodistricts,
-        sf::st_transform(sf::st_union(sim$studyAreaReporting), sf::st_crs(sim$masterRaster)),
-        sparse = FALSE),]
-    ))
-
-  sim$rasterToMatch <- masterRasterFromTemplate(sim$studyArea, template = sim$masterRaster)
-
-  return(invisible(sim))
-}
-
 ReadCohorts <- function(sim){
 
   # Initiate pixel table
+  if (terra::ncell(sim$masterRaster) > (2^31 - 1)) stop("masterRaster pixel count limited to 2^31 - 1")
   allPixDT <- data.table::data.table(
     pixelIndex = 1:terra::ncell(sim$masterRaster),
     key = "pixelIndex")
 
   # Set cell area
+  if (terra::is.lonlat(sim$masterRaster)) stop("masterRaster must be in a projected CRS")
   data.table::set(
     allPixDT, j = "area",
     value = prod(terra::res(sim$masterRaster) * terra::linearUnits(sim$masterRaster)))
@@ -835,6 +784,14 @@ ReadDisturbancesNTEMS <- function(sim){
 
 .inputObjects <- function(sim){
 
+  if (isURL(sim$masterRaster)){
+    sim$masterRaster <- reproducible::prepInputs(
+      destinationPath = inputPath(sim),
+      url = sim$masterRaster,
+      fun = terra::rast
+    )
+  }
+
   if (!suppliedElsewhere("studyAreaReporting", sim)){
 
     if (is.null(sim$studyAreaAdmin) & is.null(sim$studyAreaEco)){
@@ -855,7 +812,42 @@ ReadDisturbancesNTEMS <- function(sim){
     }
   }
 
-  sim <- PrepMasterRaster(sim)
+  if (is.null(sim$masterRaster)){
+
+    if (is.null(sim$masterRasterTemplate)) stop("Provide `masterRaster` or `masterRasterTemplate`")
+
+    masterRasterTemplate <- sim$masterRasterTemplate
+    if (is.character(masterRasterTemplate) && length(masterRasterTemplate) == 1){
+      masterRasterTemplate <- masterRasterTemplate(masterRasterTemplate)
+    }else{
+      sim$masterRasterTemplate <- NULL # Remove from simList
+    }
+
+    sim$masterRaster <- masterRasterFromTemplate(
+      sim$studyAreaReporting,
+      template = masterRasterTemplate,
+      res      = sim$masterRasterRes
+    )
+  }
+
+  # Set studyArea and rasterToMatch
+  ecodistricts <- reproducible::prepInputs(
+    destinationPath = dataPath(sim),
+    archive         = file.path(dataPath(sim), "ecodistricts.zip"),
+    targetFile      = "ecodistricts.shp",
+    fun             = sf::st_read(targetFile, quiet = TRUE)
+  ) |>
+    sf::st_transform(sf::st_crs(sim$masterRaster))
+
+  sim$studyArea <- sf::st_sf(
+    geometry = sf::st_union(
+      ecodistricts[sf::st_intersects(
+        ecodistricts,
+        sf::st_transform(sf::st_union(sim$studyAreaReporting), sf::st_crs(sim$masterRaster)),
+        sparse = FALSE),]
+    ))
+
+  sim$rasterToMatch <- masterRasterFromTemplate(sim$studyArea, template = sim$masterRaster)
 
   # Growth curve ID
   if (!suppliedElsewhere("curveID", sim)){
