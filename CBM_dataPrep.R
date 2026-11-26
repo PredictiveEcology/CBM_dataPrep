@@ -827,32 +827,35 @@ ReadDisturbancesNTEMS <- function(sim){
     )
   }
 
-  # Set studyArea
-  if (!suppliedElsewhere("studyArea", sim)){
+  if ("Biomass_core" %in% modules(sim)){
 
-    ecodistricts <- reproducible::prepInputs(
-      destinationPath = dataPath(sim),
-      archive         = file.path(dataPath(sim), "ecodistricts.zip"),
-      targetFile      = "ecodistricts.shp",
-      fun             = sf::st_read(targetFile, quiet = TRUE)
-    ) |>
-      sf::st_transform(sf::st_crs(sim$masterRaster))
+    # Set studyArea
+    if (is.null(sim$studyArea)){
 
-    sim$studyArea <- sf::st_sf(
-      geometry = sf::st_union(
-        ecodistricts[sf::st_intersects(
-          ecodistricts,
-          sf::st_transform(sf::st_union(sim$studyAreaReporting), sf::st_crs(sim$masterRaster)),
-          sparse = FALSE),]
-      ))
-  }
+      ecodistricts <- reproducible::prepInputs(
+        destinationPath = dataPath(sim),
+        archive         = file.path(dataPath(sim), "ecodistricts.zip"),
+        targetFile      = "ecodistricts.shp",
+        fun             = sf::st_read(targetFile, quiet = TRUE)
+      ) |>
+        sf::st_transform(sf::st_crs(sim$masterRaster))
 
-  # Set rasterToMatch
-  if (!suppliedElsewhere("rasterToMatch", sim) & !is.null(sim$studyArea)){
-    sim$rasterToMatch <- studyAreaRasterize(
-      sim$studyArea,
-      template = sim$masterRaster
-    )
+      sim$studyArea <- sf::st_sf(
+        geometry = sf::st_union(
+          ecodistricts[sf::st_intersects(
+            ecodistricts,
+            sf::st_transform(sf::st_union(sim$studyAreaReporting), sf::st_crs(sim$masterRaster)),
+            sparse = FALSE),]
+        ))
+    }
+
+    # Set rasterToMatch
+    if (is.null(sim$rasterToMatch)){
+      sim$rasterToMatch <- studyAreaRasterize(
+        sim$studyArea,
+        template = sim$masterRaster
+      )
+    }
   }
 
   # Growth curve ID
