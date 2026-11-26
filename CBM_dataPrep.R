@@ -342,32 +342,27 @@ ReadCohorts <- function(sim){
 
   # Set cohort attributes from input sources
   studyArea <- sim$studyAreaReporting
-  if (inherits(studyArea, "bbox")) studyArea <- sf::st_as_sfc(studyArea)
   if (!all(c("admin_name", "admin_abbrev", "eco_id") %in% names(studyArea))){
     studyAreas <- studyAreas(dataPath(sim))
+    if (inherits(studyArea, "bbox")) studyArea <- sf::st_as_sfc(studyArea)
     studyArea <- sf::st_intersection(
       studyAreas,
       sf::st_transform(sf::st_union(sf::st_geometry(studyArea)), sf::st_crs(studyAreas))
     )
   }
   if (nrow(studyArea) > 1){
-    masterRasterExt <- sf::st_transform(sf::st_as_sfc(sf::st_bbox(sim$masterRaster)), sf::st_crs(studyArea))
-    studyAreaHasNA <- length(sf::st_difference(sf::st_union(studyArea), masterRasterExt)) > 0
-
-    if (studyAreaHasNA){
-      studyArea <- studyAreas(
-        dataPath(sim),
-        studyAreaAdmin = studyArea$admin_name,
-        studyAreaEco   = studyArea$eco_id,
-        buffer         = max(terra::res(sim$masterRaster))
-      ) |> sf::st_intersection(masterRasterExt)
-    }
+    studyAreas <- studyAreas(
+      dataPath(sim),
+      studyAreaAdmin = studyArea$admin_name,
+      studyAreaEco   = studyArea$eco_id,
+      buffer         = max(terra::res(sim$masterRaster))
+    )
   }
 
   colInputs <- list(
-    admin_name   = if (length(unique(studyArea$admin_name))   == 1) unique(studyArea$admin_name)   else studyArea["admin_name"],
-    admin_abbrev = if (length(unique(studyArea$admin_abbrev)) == 1) unique(studyArea$admin_abbrev) else studyArea["admin_abbrev"],
-    eco_id       = if (length(unique(studyArea$eco_id))       == 1) unique(studyArea$eco_id)       else studyArea["eco_id"],
+    admin_name   = if (length(unique(studyArea$admin_name))   == 1) unique(studyArea$admin_name)   else studyAreas["admin_name"],
+    admin_abbrev = if (length(unique(studyArea$admin_abbrev)) == 1) unique(studyArea$admin_abbrev) else studyAreas["admin_abbrev"],
+    eco_id       = if (length(unique(studyArea$eco_id))       == 1) unique(studyArea$eco_id)       else studyAreas["eco_id"],
     age          = sim$ageLocator,
     curveID      = sim$gcIndexLocator
   )
