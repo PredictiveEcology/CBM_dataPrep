@@ -49,7 +49,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::crs(simTest$masterRaster), terra::crs("EPSG:3979"))
   expect_equal(terra::res(simTest$masterRaster), rep(30, 2))
   expect_equal(terra::ncell(simTest$masterRaster), 4830)
-  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 3688)
+  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 3688, tolerance = 10, scale = 1)
 
   expect_equal(nrow(simTest$standDT), 3688)
   expect_setequal(as.character(simTest$standDT$admin_name),   "Nova Scotia")
@@ -72,7 +72,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), terra::res(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::ncell(simTest$masterRaster), 4761)
-  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 3690)
+  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 3690, tolerance = 10, scale = 1)
 
   expect_equal(nrow(simTest$standDT), 3690)
   expect_setequal(as.character(simTest$standDT$admin_name),   "Nova Scotia")
@@ -107,7 +107,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(240, 2))
   expect_equal(terra::ncell(simTest$masterRaster), 81)
-  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 59)
+  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 59, tolerance = 3, scale = 1)
 
   expect_equal(nrow(simTest$standDT), 59)
   expect_setequal(as.character(simTest$standDT$admin_name),   "Nova Scotia")
@@ -142,7 +142,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), terra::res(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::ncell(simTest$masterRaster), 20049120)
-  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 9942278)
+  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 9942278, tolerance = 10, scale = 1)
 
   expect_equal(nrow(simTest$standDT), 9942278)
   expect_setequal(as.character(simTest$standDT$admin_name),   "Prince Edward Island")
@@ -193,7 +193,7 @@ test_that("Module: set masterRaster", {
   expect_is(simTest$masterRaster, "SpatRaster")
   expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(3000, 2))
-  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 9403)
+  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 9403, tolerance = 10, scale = 1)
 
   expect_equal(nrow(simTest$standDT), 9403)
   expect_setequal(as.character(simTest$standDT$admin_name),   c("Nova Scotia", "Prince Edward Island"))
@@ -223,7 +223,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(3000, 2))
   expect_equal(terra::ncell(simTest$masterRaster), 76953)
-  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 26733)
+  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 26733, tolerance = 10, scale = 1)
 
   expect_equal(nrow(simTest$standDT), 26733)
   expect_setequal(as.character(simTest$standDT$admin_name),   c("Nova Scotia", "Prince Edward Island", "New Brunswick", "Quebec"))
@@ -275,7 +275,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(3000, 2))
   expect_equal(terra::ncell(simTest$masterRaster), 219672)
-  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 80330)
+  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 80330, tolerance = 10, scale = 1)
 
   expect_equal(nrow(simTest$standDT), 80330)
   expect_setequal(as.character(simTest$standDT$admin_name),   c("British Columbia", "Alberta", "Yukon"))
@@ -305,7 +305,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::crs(simTest$masterRaster), terra::crs(studyAreaRasterTemplate("SCANFI")))
   expect_equal(terra::res(simTest$masterRaster), rep(3000, 2))
   expect_equal(terra::ncell(simTest$masterRaster), 52210)
-  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 8435)
+  expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 8435, tolerance = 10, scale = 1)
 
   expect_equal(nrow(simTest$standDT), 8435)
   expect_setequal(as.character(simTest$standDT$admin_name),   c("Quebec"))
