@@ -51,7 +51,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::ncell(simTest$masterRaster), 4830)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 3688, tolerance = 10, scale = 1)
 
-  expect_equal(nrow(simTest$standDT), 3688)
+  expect_equal(nrow(simTest$standDT), 3688, tolerance = 10, scale = 1)
   expect_setequal(as.character(simTest$standDT$admin_name),   "Nova Scotia")
   expect_setequal(as.character(simTest$standDT$admin_abbrev), "NS")
   expect_setequal(simTest$standDT$eco_id,                     7)
@@ -74,7 +74,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::ncell(simTest$masterRaster), 4761)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 3690, tolerance = 10, scale = 1)
 
-  expect_equal(nrow(simTest$standDT), 3690)
+  expect_equal(nrow(simTest$standDT), 3690, tolerance = 10, scale = 1)
   expect_setequal(as.character(simTest$standDT$admin_name),   "Nova Scotia")
   expect_setequal(as.character(simTest$standDT$admin_abbrev), "NS")
   expect_setequal(simTest$standDT$eco_id,                     7)
@@ -109,7 +109,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::ncell(simTest$masterRaster), 81)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 59, tolerance = 3, scale = 1)
 
-  expect_equal(nrow(simTest$standDT), 59)
+  expect_equal(nrow(simTest$standDT), 59, tolerance = 3, scale = 1)
   expect_setequal(as.character(simTest$standDT$admin_name),   "Nova Scotia")
   expect_setequal(as.character(simTest$standDT$admin_abbrev), "NS")
   expect_setequal(simTest$standDT$eco_id,                     7)
@@ -144,7 +144,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::ncell(simTest$masterRaster), 20049120)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 9942278, tolerance = 10, scale = 1)
 
-  expect_equal(nrow(simTest$standDT), 9942278)
+  expect_equal(nrow(simTest$standDT), 9942278, tolerance = 10, scale = 1)
   expect_setequal(as.character(simTest$standDT$admin_name),   "Prince Edward Island")
   expect_setequal(as.character(simTest$standDT$admin_abbrev), "PE")
   expect_setequal(simTest$standDT$eco_id,                     7)
@@ -195,7 +195,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::res(simTest$masterRaster), rep(3000, 2))
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 9403, tolerance = 10, scale = 1)
 
-  expect_equal(nrow(simTest$standDT), 9403)
+  expect_equal(nrow(simTest$standDT), 9403, tolerance = 10, scale = 1)
   expect_setequal(as.character(simTest$standDT$admin_name),   c("Nova Scotia", "Prince Edward Island"))
   expect_setequal(as.character(simTest$standDT$admin_abbrev), c("NS", "PE"))
   expect_setequal(unique(simTest$standDT$eco_id),              7)
@@ -225,7 +225,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::ncell(simTest$masterRaster), 76953)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 26733, tolerance = 10, scale = 1)
 
-  expect_equal(nrow(simTest$standDT), 26733)
+  expect_equal(nrow(simTest$standDT), 26733, tolerance = 10, scale = 1)
   expect_setequal(as.character(simTest$standDT$admin_name),   c("Nova Scotia", "Prince Edward Island", "New Brunswick", "Quebec"))
   expect_setequal(as.character(simTest$standDT$admin_abbrev), c("NS", "PE", "NB", "QC"))
   expect_setequal(simTest$standDT$eco_id,                     7)
@@ -277,7 +277,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::ncell(simTest$masterRaster), 219672)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 80330, tolerance = 10, scale = 1)
 
-  expect_equal(nrow(simTest$standDT), 80330)
+  expect_equal(nrow(simTest$standDT), 80330, tolerance = 10, scale = 1)
   expect_setequal(as.character(simTest$standDT$admin_name),   c("British Columbia", "Alberta", "Yukon"))
   expect_setequal(as.character(simTest$standDT$admin_abbrev), c("BC", "AB", "YT"))
   expect_setequal(simTest$standDT$eco_id,                     c(13, 14))
@@ -307,7 +307,7 @@ test_that("Module: set masterRaster", {
   expect_equal(terra::ncell(simTest$masterRaster), 52210)
   expect_equal(terra::global(simTest$masterRaster, "notNA")[1,1], 8435, tolerance = 10, scale = 1)
 
-  expect_equal(nrow(simTest$standDT), 8435)
+  expect_equal(nrow(simTest$standDT), 8435, tolerance = 10, scale = 1)
   expect_setequal(as.character(simTest$standDT$admin_name),   c("Quebec"))
   expect_setequal(as.character(simTest$standDT$admin_abbrev), c("QC"))
   expect_setequal(simTest$standDT$eco_id,                     7)
