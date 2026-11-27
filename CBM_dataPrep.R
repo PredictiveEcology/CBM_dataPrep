@@ -15,6 +15,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("CBM_dataPrep.Rmd"),
+  loadOrder = list(after = c("CBM_defaults"), before = c("CBM_vol2biomass", "CBM_core")),
   reqdPkgs = list(
     "data.table", "RSQLite", "sf", "terra", "exactextractr", "gstat",
     "reproducible (>=2.1.2)", "digest", "googledrive",
