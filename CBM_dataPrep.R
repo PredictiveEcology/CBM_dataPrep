@@ -33,19 +33,27 @@ defineModule(sim, list(
       objectName = "masterRaster", objectClass = "SpatRaster|character",
       desc = paste(
         "Raster template defining the study area. NA cells will be excluded from analysis.",
-        "This can be provided as a SpatRaster or URL.")),
+        "This can be provided as a SpatRaster or URL.",
+        "Provide this or `masterRasterTemplate` and `studyAreaReporting`."
+      )),
     expectsInput(
-      objectName  = "adminLocator",
-      objectClass = "sf|SpatRaster|sourceID|URL|character",
+      objectName = "masterRasterTemplate", objectClass = "character|SpatRaster",
       desc = paste(
-        "Canada administrative boundary name(s).",
-        "This can be provided as a spatial object, a `CBMutils::CBMsources` sourceID, a URL, or a single value for all cohorts.")),
+        "Raster template used to create `masterRaster`.",
+        "Can be a data provider source name (e.g. 'SCANFI') or a SpatRaster."
+      )),
     expectsInput(
-      objectName  = "ecoLocator",
-      objectClass = "sf|SpatRaster|sourceID|URL|numeric",
-      desc = paste(
-        "Canada ecozone ID(s).",
-        "This can be provided as a spatial object, a `CBMutils::CBMsources` sourceID, a URL, or a single value for all cohorts.")),
+      objectName = "masterRasterRes", objectClass = "numeric",
+      desc = "`masterRaster` resolution if created with `masterRasterTemplate`"),
+    expectsInput(
+      objectName = "studyAreaReporting", objectClass = "character",
+      desc = "Polygon defining the study area. Provide this or `studyAreaAdmin` and/or`studyAreaEco`."),
+    expectsInput(
+      objectName = "studyAreaAdmin", objectClass = "character",
+      desc = "Canada province or territory name or 2 character abbreviation used to set `studyAreaReporting`."),
+    expectsInput(
+      objectName = "studyAreaEco", objectClass = "character|numeric",
+      desc = "Canada ecozone name(s) or ID(s) used to set `studyAreaReporting`."),
     expectsInput(
       objectName  = "ageLocator",
       objectClass = "sf|SpatRaster|sourceID|URL|numeric",
@@ -192,14 +200,11 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
 
     init = {
 
-      # Prepare master raster
-      sim <- PrepMasterRaster(sim)
+      # Prepare species data
+      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "matchSpecies", eventPriority = 1)
 
       # Prepare cohorts
       sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "prepCohorts", eventPriority = 2)
-
-      # Prepare species data
-      sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "matchSpecies", eventPriority = 1)
 
       # Prepare disturbances
       sim <- scheduleEvent(sim, start(sim), "CBM_dataPrep", "readDisturbances",  eventPriority = 8)
@@ -316,69 +321,43 @@ doEvent.CBM_dataPrep <- function(sim, eventTime, eventType, debug = FALSE) {
   return(invisible(sim))
 }
 
-PrepMasterRaster <- function(sim){
-
-  if (is.null(sim$masterRaster)) stop("masterRaster not found")
-
-  if (!inherits(sim$masterRaster, "SpatRaster")){
-
-    if (isURL(sim$masterRaster)){
-      sim$masterRaster <- reproducible::prepInputs(
-        destinationPath = inputPath(sim),
-        url = sim$masterRaster,
-        fun = terra::rast
-      )
-
-    }else{
-      sim$masterRaster <- tryCatch(
-        terra::rast(sim$masterRaster),
-        error = function(e) stop(
-          "masterRaster could not be converted to SpatRaster: ", e$message,
-          call. = FALSE))
-    }
-  }
-
-  if (terra::is.lonlat(sim$masterRaster))          stop("masterRaster must be in a projected CRS")
-  if (terra::ncell(sim$masterRaster) > (2^31 - 1)) stop("masterRaster pixel count limited to 2^31 - 1")
-
-  # Mask cells outside of admin boundary
-  if (is.character(sim$adminLocator) && length(sim$adminLocator) == 1 &&
-      !terra::global(sim$masterRaster, "anyNA")[1, 1]){
-
-    adminBoundaries <- reproducible::prepInputs(
-      destinationPath = dataPath(sim),
-      archive         = file.path(dataPath(sim), "adminLocator.zip"),
-      targetFile      = "adminLocator.shp",
-      fun             = sf::st_read(targetFile, quiet = TRUE)
-    )
-    if (sim$adminLocator %in% adminBoundaries$name){
-      adminMask <- subset(adminBoundaries, name == sim$adminLocator) |>
-        sf::st_segmentize(10000) |>
-        sf::st_transform(sf::st_crs(sim$masterRaster))
-      sim$masterRaster <- terra::mask(sim$masterRaster, adminMask, touches = FALSE)
-    }
-  }
-
-  return(invisible(sim))
-}
-
 ReadCohorts <- function(sim){
 
   # Initiate pixel table
+  if (terra::ncell(sim$masterRaster) > (2^31 - 1)) stop("masterRaster pixel count limited to 2^31 - 1")
   allPixDT <- data.table::data.table(
     pixelIndex = 1:terra::ncell(sim$masterRaster),
     key = "pixelIndex")
 
   # Set cell area
+  if (terra::is.lonlat(sim$masterRaster)) stop("masterRaster must be in a projected CRS")
   data.table::set(
     allPixDT, j = "area",
     value = prod(terra::res(sim$masterRaster) * terra::linearUnits(sim$masterRaster)))
 
   # Set cohort attributes from input sources
+  studyArea <- sim$studyAreaReporting
+  if (!all(c("admin_name", "admin_abbrev", "eco_id") %in% names(studyArea))){
+    studyAreas <- studyAreas(dataPath(sim))
+    if (inherits(studyArea, "bbox")) studyArea <- sf::st_as_sfc(studyArea)
+    studyArea <- sf::st_intersection(
+      studyAreas,
+      sf::st_transform(sf::st_union(sf::st_geometry(studyArea)), sf::st_crs(studyAreas))
+    )
+  }
+  if (nrow(studyArea) > 1){
+    studyAreas <- studyAreas(
+      dataPath(sim),
+      studyAreaAdmin = studyArea$admin_name,
+      studyAreaEco   = studyArea$eco_id,
+      buffer         = max(terra::res(sim$masterRaster))
+    )
+  }
+
   colInputs <- list(
-    admin_name   = sim$adminLocator,
-    admin_abbrev = if (isValue(sim$adminLocator)) adminAbbrev(sim$adminLocator),
-    eco_id       = sim$ecoLocator,
+    admin_name   = if (length(unique(studyArea$admin_name))   == 1) unique(studyArea$admin_name)   else studyAreas["admin_name"],
+    admin_abbrev = if (length(unique(studyArea$admin_abbrev)) == 1) unique(studyArea$admin_abbrev) else studyAreas["admin_abbrev"],
+    eco_id       = if (length(unique(studyArea$eco_id))       == 1) unique(studyArea$eco_id)       else studyAreas["eco_id"],
     age          = sim$ageLocator,
     curveID      = sim$gcIndexLocator
   )
@@ -452,11 +431,6 @@ ReadCohorts <- function(sim){
           error = function(e) warning(e$message, call. = FALSE))
       }
     }
-  }
-
-  # Set admin_abbrev
-  if (!"admin_abbrev" %in% names(allPixDT) & "admin_name" %in% names(allPixDT)){
-    allPixDT[, admin_abbrev := adminAbbrev(admin_name)]
   }
 
   # Set cohort age data year if not set
@@ -754,8 +728,8 @@ ReadDisturbancesNTEMS <- function(sim){
       "; name = ", shQuote(name)))
 
     distValues <- data.table::data.table(year = CBMutils::extractToRast(
-        sourceTIF, templateRast = sim$masterRaster
-      ) |> reproducible::Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
+      sourceTIF, templateRast = sim$masterRaster
+    ) |> reproducible::Cache(omitArgs = "templateRast", .cacheExtra = masterRasterDigest(sim))
     )
 
     if (P(sim)$saveRasters){
@@ -783,21 +757,49 @@ ReadDisturbancesNTEMS <- function(sim){
 
 .inputObjects <- function(sim){
 
-  # Canada admin boundaries & ecozones
-  if (!suppliedElsewhere("adminLocator", sim)){
-    sim$adminLocator <- reproducible::prepInputs(
-      destinationPath = dataPath(sim),
-      archive         = file.path(dataPath(sim), "adminLocator.zip"),
-      targetFile      = "adminLocator.shp",
-      fun             = sf::st_read(targetFile, quiet = TRUE)
+  if (isURL(sim$masterRaster)){
+    sim$masterRaster <- reproducible::prepInputs(
+      destinationPath = inputPath(sim),
+      url = sim$masterRaster,
+      fun = terra::rast
     )
   }
-  if (!suppliedElsewhere("ecoLocator", sim)){
-    sim$ecoLocator <- reproducible::prepInputs(
-      destinationPath = dataPath(sim),
-      archive         = file.path(dataPath(sim), "ecoLocator.zip"),
-      targetFile      = "ecoLocator.shp",
-      fun             = sf::st_read(targetFile, quiet = TRUE)
+
+  # Set studyAreaReporting
+  if (is.null(sim$studyAreaReporting)){
+
+    if (is.null(sim$studyAreaAdmin) & is.null(sim$studyAreaEco)){
+
+      if (!is.null(sim$masterRaster)){
+        sim$studyAreaReporting <- sf::st_sf(
+          geometry = sf::st_as_sfc(sf::st_bbox(sim$masterRaster)))
+
+      }else stop("Provide `studyAreaReporting` or `studyAreaAdmin` and/or `studyAreaEco`")
+    }
+
+    if (is.null(sim$studyAreaReporting)){
+      sim$studyAreaReporting <- studyAreas(
+        dataPath(sim),
+        studyAreaAdmin = sim$studyAreaAdmin,
+        studyAreaEco   = sim$studyAreaEco
+      )
+    }
+  }
+
+  # Set masterRaster
+  if (is.null(sim$masterRaster)){
+
+    if (is.null(sim$masterRasterTemplate)) stop("Provide `masterRaster` or `masterRasterTemplate`")
+
+    masterRasterTemplate <- sim$masterRasterTemplate
+    if (is.character(masterRasterTemplate) && length(masterRasterTemplate) == 1){
+      masterRasterTemplate <- studyAreaRasterTemplate(masterRasterTemplate)
+    }
+
+    sim$masterRaster <- studyAreaRasterize(
+      sim$studyAreaReporting,
+      template = masterRasterTemplate,
+      res      = sim$masterRasterRes
     )
   }
 
