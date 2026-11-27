@@ -814,6 +814,7 @@ ReadDisturbancesNTEMS <- function(sim){
     )
   }
 
+  # Check which other study area input objects to set
   inputObjToSet <- setdiff(
     data.table::rbindlist(
       lapply(do.call(c, modules(sim)), function(module) cbind(module = module, inputObjects(sim, module))),
@@ -825,7 +826,8 @@ ReadDisturbancesNTEMS <- function(sim){
     sf::st_union(sim$studyAreaReporting),
     sf::st_crs(sim$masterRaster))
 
-  # Set studyArea
+  # Set studyArea and rasterToMatch
+  ## Buffer studyAreaReporting by 20km
   if ("studyArea" %in% inputObjToSet){
     sim$studyArea <- sf::st_sf(geometry = sf::st_buffer(studyAreaReporting, 20000))
   }
@@ -835,7 +837,9 @@ ReadDisturbancesNTEMS <- function(sim){
       template = sim$masterRaster
     )
   }
-  # Set studyArea_biomassParam
+
+  # Set studyArea_biomassParam and rasterToMatch_biomassParam
+  ## Buffer studyAreaReporting by 5km and include all intersecting ecodistricts
   if ("studyArea_biomassParam" %in% inputObjToSet){
 
     ecodistricts <- reproducible::prepInputs(
